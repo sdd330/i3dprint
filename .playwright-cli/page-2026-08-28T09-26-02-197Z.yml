@@ -1,0 +1,92 @@
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - generic [ref=e5]:
+      - generic [ref=e6] [cursor=pointer]:
+        - generic [ref=e7]: 🧪
+        - generic [ref=e8]: 3D 打印小屋
+      - navigation [ref=e9]:
+        - link "首页" [ref=e10] [cursor=pointer]:
+          - /url: /
+        - link "我的订单" [ref=e11] [cursor=pointer]:
+          - /url: /orders
+        - link "创建需求" [ref=e12] [cursor=pointer]:
+          - /url: /create
+        - link "AI 建模" [ref=e13] [cursor=pointer]:
+          - /url: /ai
+        - link "使用手册" [ref=e14] [cursor=pointer]:
+          - /url: /manual
+      - generic [ref=e99]:
+        - generic [ref=e100]: 小陈 · 大一
+        - button "退出" [ref=e102] [cursor=pointer]
+  - generic [ref=e501]:
+    - generic [ref=e503]:
+      - heading "需求 O1 · 内置模型 · vase" [level=1] [ref=e504]
+      - paragraph [ref=e505]:
+        - text: 活动内编号 O1 · 创建于 2026-08-28T09:25
+        - generic [ref=e506]: Val2审核中
+    - generic [ref=e508]:
+      - generic [ref=e509]: 创建
+      - generic [ref=e513]: 摆放
+      - generic [ref=e517]: Val1
+      - generic [ref=e521]: 耗材/参数
+      - generic [ref=e525]: 切片
+      - generic [ref=e529]: Val2
+      - generic [ref=e533]: 打印
+      - generic [ref=e537]: Val3
+      - generic [ref=e541]: 核算
+    - generic [ref=e544]:
+      - generic [ref=e546]:
+        - heading "状态时间轴（§12.2 两级状态机）" [level=3] [ref=e547]
+        - generic [ref=e548]:
+          - generic [ref=e549]:
+            - generic [ref=e550]: 2026-08-28T09:25:35 · modeling
+            - generic [ref=e551]: 选择模型「内置模型 · vase」，进入摆放调整
+          - generic [ref=e552]:
+            - generic [ref=e553]: 2026-08-28T09:25:46 · val1_pending
+            - generic [ref=e554]: 提交 Val1 自动审核
+          - generic [ref=e555]:
+            - generic [ref=e556]: 2026-08-28T09:25:46 · slicing
+            - generic [ref=e557]: Val1 通过，云端切片中（OrcaSlicer）
+          - generic [ref=e558]:
+            - generic [ref=e559]: 2026-08-28T09:25:46 · val2_pending
+            - generic [ref=e560]: 切片完成（预计 155min / 19.3g），Val2 自动检查通过，等待负责人人工审核
+      - generic [ref=e561]:
+        - generic [ref=e562]:
+          - heading "需求信息" [level=3] [ref=e563]
+          - table [ref=e566]:
+            - rowgroup [ref=e567]:
+              - row [ref=e568]:
+                - cell "模型" [ref=e569]
+                - cell "内置模型 · vase（v1）" [ref=e570]
+              - row [ref=e571]:
+                - cell "耗材" [ref=e572]
+                - 'cell "PLA 聚乳酸 · #E8602C" [ref=e573]'
+              - row [ref=e574]:
+                - cell "参数" [ref=e575]
+                - cell "0.2mm / 填充20%" [ref=e576]
+              - row [ref=e577]:
+                - cell "尺寸" [ref=e578]
+                - cell "43.8 × 55 × 43.8 mm" [ref=e579]
+              - row [ref=e580]:
+                - cell "自备耗材" [ref=e581]
+                - cell "平台耗材" [ref=e582]
+        - generic [ref=e583]:
+          - heading "审核记录（§13.3）" [level=3] [ref=e584]
+          - generic [ref=e585]:
+            - generic [ref=e586]: VAL1 · 通过 — 系统
+            - generic [ref=e587]: 模型满足制造条件，可通过 · 2026-08-28T09:25
+        - generic [ref=e588]:
+          - heading "费用明细（§11 / §13.5 流水）" [level=3] [ref=e589]
+          - generic [ref=e591]:
+            - table [ref=e593]:
+              - rowgroup [ref=e598]:
+                - row [ref=e599]:
+                  - columnheader "类别" [ref=e600]
+                  - columnheader "说明" [ref=e602]
+                  - columnheader "金额" [ref=e604]
+            - generic [ref=e609]:
+              - table:
+                - rowgroup
+              - generic [ref=e610]: 暂无数据
+          - paragraph [ref=e631]: 尚无费用流水（Val3 通过后核算）
+  - button "🧑‍🔧" [ref=e71] [cursor=pointer]

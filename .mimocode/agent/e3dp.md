@@ -76,6 +76,13 @@ mode: primary
 3. **自备耗材**：先放保险柜，平台取件并检验合格后再打印。
 4. **异常重新排队**：中间任何环节（审核/切片/打印/验收）异常 → 重新排队，不沿用原排位。
 
+## 实现状态（2026-08-28 全功能首版已交付）
+
+- **代码位置**：`app/`（backend = Python FastAPI + SQLAlchemy + SQLite；frontend = Vue3 + Vite + Element Plus + Three.js）。运行：backend `uvicorn app.main:app --port 8000`（首次自动建库+种子）；frontend `npm run dev`（/api 代理 8000）。README 见 `app/README.md`。
+- **实现决策清单**：`实现决策清单.md`（14 项 + 站娘补充全部已定；部署要暴露公网→权限系统+访问控制：学号密码登录+RBAC+归属校验+审计）。
+- **已实现**：两级状态机（活动4态×订单16态）、Val1（trimesh 真实几何分析，阈值走配置中心）、切片（OrcaSlicer CLI 预留，mock 标注来源）、Val2（自动+人工+内容合规）、打印模块（PrintProvider 接口+模拟，拓竹 LAN 待 POC）、Val3+责任判定（设备半价重打）、费用（耗材+维护+API按token/点数用量）、配置中心（默认模板+活动副本可选继承+审计）、RBAC 角色配置、站娘（知识库/System Prompt 图形化、Spine 关键字、过滤词监督）、AI 建模（Tripo 占位+体检）、活动账单。
+- **POC 待办**：OrcaSlicer CLI 无X跑通（§6.4）、拓竹 LAN Provider、Tripo 真实 SDK、Spine 资产。
+
 ## 当前工作状态（重要，勿照旧文档假设）
 
 - `校园3D打印自助平台设计.docx` 已：**P1/P2 术语统一为 Val1/Val2/Val3**、**新增 §17 配套运营机制**、**总结重编为 §18**、**全部标题转 Heading 1/2**。共 832 段，Heading1=18、Heading2=54，无 TOC 残留。

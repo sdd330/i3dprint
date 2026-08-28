@@ -1,0 +1,27 @@
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - generic [ref=e5]:
+      - generic [ref=e6] [cursor=pointer]:
+        - generic [ref=e7]: 🧪
+        - generic [ref=e8]: 3D 打印小屋
+      - navigation [ref=e9]:
+        - link "首页" [ref=e10] [cursor=pointer]:
+          - /url: /
+        - link "我的订单" [ref=e11] [cursor=pointer]:
+          - /url: /orders
+        - link "创建需求" [ref=e12] [cursor=pointer]:
+          - /url: /create
+        - link "AI 建模" [ref=e13] [cursor=pointer]:
+          - /url: /ai
+        - link "使用手册" [ref=e14] [cursor=pointer]:
+          - /url: /manual
+      - generic [ref=e99]:
+        - generic [ref=e100]: 小陈 · 大一
+        - button "退出" [ref=e102] [cursor=pointer]
+  - generic [ref=e228]:
+    - heading "创建打印需求" [level=1] [ref=e229]
+    - paragraph [ref=e230]: 活动「2026 秋季第 1 场 · 3D 打印体验活动」· 开放中 · 上传模型或从内置演示模型开始
+    - generic [ref=e233]:
+      - paragraph [ref=e252]: 先创建一个空的打印需求，然后选择模型进入摆放工作区
+      - button "创建需求" [ref=e254] [cursor=pointer]
+  - button "🧑‍🔧" [ref=e71] [cursor=pointer]

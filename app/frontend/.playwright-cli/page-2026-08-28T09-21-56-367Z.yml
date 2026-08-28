@@ -1,0 +1,90 @@
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - generic [ref=e5]:
+      - generic [ref=e6] [cursor=pointer]:
+        - generic [ref=e7]: 🧪
+        - generic [ref=e8]: 3D 打印小屋
+      - navigation [ref=e9]:
+        - link "首页" [ref=e10] [cursor=pointer]:
+          - /url: /
+        - link "我的订单" [ref=e11] [cursor=pointer]:
+          - /url: /orders
+        - link "创建需求" [ref=e12] [cursor=pointer]:
+          - /url: /create
+        - link "AI 建模" [ref=e13] [cursor=pointer]:
+          - /url: /ai
+        - link "使用手册" [ref=e14] [cursor=pointer]:
+          - /url: /manual
+      - generic [ref=e99]:
+        - generic [ref=e100]: 小陈 · 大一
+        - button "退出" [ref=e102] [cursor=pointer]
+  - generic [ref=e226]:
+    - heading "我的订单" [level=1] [ref=e227]
+    - paragraph [ref=e228]: 每个打印需求都在所属活动中独立流转（两级状态机：活动 4 态 × 订单 16 态）
+    - generic [ref=e229]:
+      - radiogroup "radio-group" [ref=e230]:
+        - generic [ref=e231]:
+          - radio "全部" [checked] [ref=e232]
+          - generic [ref=e233] [cursor=pointer]: 全部
+        - generic [ref=e234]:
+          - radio "进行中" [ref=e235]
+          - generic [ref=e236] [cursor=pointer]: 进行中
+        - generic [ref=e237]:
+          - radio "已完成" [ref=e238]
+          - generic [ref=e239] [cursor=pointer]: 已完成
+        - generic [ref=e240]:
+          - radio "已终止" [ref=e241]
+          - generic [ref=e242] [cursor=pointer]: 已终止
+      - button "+ 新建需求" [ref=e243] [cursor=pointer]
+    - generic [ref=e246]:
+      - table [ref=e248]:
+        - rowgroup [ref=e255]:
+          - row [ref=e256]:
+            - columnheader "需求" [ref=e257]
+            - columnheader "状态" [ref=e259]
+            - columnheader "主链进度" [ref=e261]
+            - columnheader "费用" [ref=e263]
+            - columnheader [ref=e265]
+      - table [ref=e270]:
+        - rowgroup [ref=e277]:
+          - row [ref=e278]:
+            - cell "内置模型 · stand O2 · 2026-08-28T09:15" [ref=e279]:
+              - generic [ref=e280]:
+                - generic [ref=e281]: 内置模型 · stand
+                - generic [ref=e282]: O2 · 2026-08-28T09:15
+            - cell "重新处理" [ref=e283]
+            - cell "创建 摆放 Val1 耗材/参数 切片 Val2 打印 Val3 核算" [ref=e286]:
+              - generic [ref=e288]:
+                - generic [ref=e289]: 创建
+                - generic [ref=e293]: 摆放
+                - generic [ref=e297]: Val1
+                - generic [ref=e301]: 耗材/参数
+                - generic [ref=e305]: 切片
+                - generic [ref=e309]: Val2
+                - generic [ref=e313]: 打印
+                - generic [ref=e317]: Val3
+                - generic [ref=e321]: 核算
+            - cell "¥0.00" [ref=e324]
+            - cell [ref=e326]:
+              - button "查看" [ref=e328] [cursor=pointer]
+          - row [ref=e330]:
+            - cell "内置模型 · spinner O1 · 2026-08-28T09:15" [ref=e331]:
+              - generic [ref=e332]:
+                - generic [ref=e333]: 内置模型 · spinner
+                - generic [ref=e334]: O1 · 2026-08-28T09:15
+            - cell "Val2审核中" [ref=e335]
+            - cell "创建 摆放 Val1 耗材/参数 切片 Val2 打印 Val3 核算" [ref=e338]:
+              - generic [ref=e340]:
+                - generic [ref=e341]: 创建
+                - generic [ref=e345]: 摆放
+                - generic [ref=e349]: Val1
+                - generic [ref=e353]: 耗材/参数
+                - generic [ref=e357]: 切片
+                - generic [ref=e361]: Val2
+                - generic [ref=e365]: 打印
+                - generic [ref=e369]: Val3
+                - generic [ref=e373]: 核算
+            - cell "¥0.00" [ref=e376]
+            - cell [ref=e378]:
+              - button "查看" [ref=e380] [cursor=pointer]
+  - button "🧑‍🔧" [ref=e71] [cursor=pointer]

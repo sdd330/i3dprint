@@ -1,0 +1,62 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e3]:
+    - banner [ref=e4]:
+      - generic [ref=e5]:
+        - generic [ref=e6] [cursor=pointer]:
+          - generic [ref=e7]: 🧪
+          - generic [ref=e8]: 3D 打印小屋
+        - navigation [ref=e9]:
+          - link "首页" [ref=e10] [cursor=pointer]:
+            - /url: /
+          - link "我的订单" [ref=e11] [cursor=pointer]:
+            - /url: /orders
+          - link "创建需求" [ref=e12] [cursor=pointer]:
+            - /url: /create
+          - link "AI 建模" [ref=e13] [cursor=pointer]:
+            - /url: /ai
+          - link "使用手册" [ref=e14] [cursor=pointer]:
+            - /url: /manual
+        - generic [ref=e99]:
+          - generic [ref=e100]: 小陈 · 大一
+          - button "退出" [ref=e102] [cursor=pointer]
+    - generic [ref=e228]:
+      - heading "创建打印需求" [level=1] [ref=e229]
+      - paragraph [ref=e230]: 活动「2026 秋季第 1 场 · 3D 打印体验活动」· 开放中 · 上传模型或从内置演示模型开始
+      - generic [ref=e256]:
+        - generic [ref=e257]: 需求 O1 · 新打印需求
+        - radiogroup "radio-group" [ref=e259]:
+          - generic [ref=e260]:
+            - radio "内置演示模型" [checked] [ref=e261]
+            - generic [ref=e262] [cursor=pointer]: 内置演示模型
+          - generic [ref=e263]:
+            - radio "上传 STL / OBJ" [ref=e264]
+            - generic [ref=e265] [cursor=pointer]: 上传 STL / OBJ
+        - generic [ref=e266]:
+          - text: 没有模型？去
+          - link "AI 建模" [ref=e267] [cursor=pointer]:
+            - /url: /ai
+          - text: 生成后自动填充
+      - generic [ref=e268]:
+        - generic [ref=e269] [cursor=pointer]:
+          - generic [ref=e270]: 🏺
+          - generic [ref=e271]: 桌面小花瓶
+          - generic [ref=e272]: 螺旋纹小花瓶，适合桌面摆放
+        - generic [ref=e273] [cursor=pointer]:
+          - generic [ref=e274]: 🤖
+          - generic [ref=e275]: 可动小机器人
+          - generic [ref=e276]: 关节可动的小机器人摆件
+        - generic [ref=e277] [cursor=pointer]:
+          - generic [ref=e278]: 📱
+          - generic [ref=e279]: 手机支架
+          - generic [ref=e280]: 桌面手机支架，横竖屏均可
+        - generic [ref=e281] [cursor=pointer]:
+          - generic [ref=e282]: 🖊️
+          - generic [ref=e283]: 多功能笔筒
+          - generic [ref=e284]: 六边形笔筒，可放文具与手机
+        - generic [ref=e285] [cursor=pointer]:
+          - generic [ref=e286]: 🌀
+          - generic [ref=e287]: 指尖陀螺
+          - generic [ref=e288]: 解压指尖陀螺（薄壁款有风险）
+    - button "🧑‍🔧" [ref=e71] [cursor=pointer]
+  - alert [ref=e289]:
+    - paragraph [ref=e293]: 需求已创建，接下来选择模型

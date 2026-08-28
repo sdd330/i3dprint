@@ -1,0 +1,41 @@
+# ---- Python ----
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# ---- Node / 前端 ----
+node_modules/
+dist/
+dist-ssr/
+*.local
+
+# ---- 环境变量与密钥（不提交） ----
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# ---- 运行时数据（数据库/上传文件/日志） ----
+*.db
+*.sqlite3
+data/
+uploads/
+storage/
+logs/
+*.log
+
+# ---- IDE / 系统 ----
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# ---- 本地工具输出 ----
+/tmp/

@@ -1,0 +1,99 @@
+- generic [ref=e1]:
+  - generic [ref=e3]:
+    - banner [ref=e4]:
+      - generic [ref=e5]:
+        - generic [ref=e6] [cursor=pointer]:
+          - generic [ref=e7]: 🧪
+          - generic [ref=e8]: 3D 打印小屋
+        - navigation [ref=e9]:
+          - link "首页" [ref=e10] [cursor=pointer]:
+            - /url: /
+          - link "我的订单" [ref=e11] [cursor=pointer]:
+            - /url: /orders
+          - link "创建需求" [ref=e12] [cursor=pointer]:
+            - /url: /create
+          - link "AI 建模" [ref=e13] [cursor=pointer]:
+            - /url: /ai
+          - link "使用手册" [ref=e14] [cursor=pointer]:
+            - /url: /manual
+          - separator [ref=e99]
+          - link "负责人工作台" [ref=e100] [cursor=pointer]:
+            - /url: /admin
+          - link "配置中心" [ref=e101] [cursor=pointer]:
+            - /url: /admin/config
+        - generic [ref=e102]:
+          - generic [ref=e103]: 负责人 · 老韩 · 负责人
+          - button "退出" [ref=e105] [cursor=pointer]
+    - generic [ref=e243]:
+      - heading "负责人工作台" [level=1] [ref=e244]
+      - paragraph [ref=e245]: 审核队列 · 打印管理 · 活动生命周期 · 账单 —— 所有操作写入审计日志（§13.4）
+      - generic [ref=e247]:
+        - generic [ref=e248]:
+          - text: 2026 秋季第 1 场 · 3D 打印体验活动
+          - generic [ref=e249]:
+            - generic [ref=e250]:
+              - generic [ref=e251]: "1"
+              - generic [ref=e255]: 待开放
+            - generic [ref=e257]:
+              - generic [ref=e258]: "2"
+              - generic [ref=e262]: 开放中
+            - generic [ref=e264]:
+              - generic [ref=e265]: "3"
+              - generic [ref=e269]: 收尾中
+            - generic [ref=e271]:
+              - generic [ref=e272]: "4"
+              - generic [ref=e275]: 已归档
+        - button "收尾（停止接单）" [ref=e278] [cursor=pointer]
+      - generic [ref=e280]:
+        - generic [ref=e281]:
+          - heading "Val1 申诉审核 1" [level=3] [ref=e282]:
+            - text: Val1 申诉审核
+            - generic [ref=e283]: "1"
+          - generic [ref=e285]:
+            - text: O3 · 内置模型 · spinner
+            - generic [ref=e286]: 小周 · 陀螺薄壁设计，接受风险
+            - generic [ref=e287]: 警告项：非流形结构、壁厚
+            - generic [ref=e288]:
+              - button "同意进入" [ref=e289] [cursor=pointer]
+              - button "要求修改" [ref=e291] [cursor=pointer]
+              - button "驳回" [ref=e293] [cursor=pointer]
+        - generic [ref=e295]:
+          - heading "Val2 切片审核 1" [level=3] [ref=e296]:
+            - text: Val2 切片审核
+            - generic [ref=e297]: "1"
+          - generic [ref=e299]:
+            - text: O2 · 内置模型 · stand
+            - generic [ref=e300]: 阿宁 · 预计 235min / 11.6g · 自备耗材✓
+            - generic [ref=e301]: Val2 自动检查：通过 · 切片器：OrcaSlicer (模拟)
+            - generic [ref=e302]:
+              - button "通过并放行" [ref=e303] [cursor=pointer]
+              - button "驳回（参数）" [ref=e305] [cursor=pointer]
+              - button "内容不合规" [ref=e307] [cursor=pointer]
+        - generic [ref=e309]:
+          - heading "打印队列 0" [level=3] [ref=e310]:
+            - text: 打印队列
+            - generic [ref=e311]: "0"
+          - paragraph [ref=e332]: 队列空闲
+        - generic [ref=e333]:
+          - heading "打印中 / 异常重排" [level=3] [ref=e334]
+          - generic [ref=e336]:
+            - text: X1C-01
+            - generic [ref=e337]: 空闲
+          - generic [ref=e340]:
+            - text: X1C-02
+            - generic [ref=e341]: 空闲
+        - generic [ref=e343]:
+          - heading "Val3 实物验收 0" [level=3] [ref=e344]:
+            - text: Val3 实物验收
+            - generic [ref=e345]: "0"
+          - paragraph [ref=e366]: 无待验收实物
+    - button "🧑‍🔧" [ref=e71] [cursor=pointer]
+  - dialog "需求 O2" [ref=e368]:
+    - generic [ref=e369]:
+      - generic [ref=e370]:
+        - generic [ref=e371]: 需求 O2
+        - button "关闭此对话框" [ref=e372] [cursor=pointer]
+      - paragraph [ref=e379]: 确认 Val2 审核通过并生成打印任务？ （含人工切片审核 + 内容合规审核，§7.3/§7.4）
+      - generic [ref=e380]:
+        - button "取消" [ref=e381] [cursor=pointer]
+        - button "确定" [active] [ref=e383] [cursor=pointer]

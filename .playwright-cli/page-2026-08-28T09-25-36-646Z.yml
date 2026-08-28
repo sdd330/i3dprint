@@ -1,0 +1,68 @@
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - generic [ref=e5]:
+      - generic [ref=e6] [cursor=pointer]:
+        - generic [ref=e7]: 🧪
+        - generic [ref=e8]: 3D 打印小屋
+      - navigation [ref=e9]:
+        - link "首页" [ref=e10] [cursor=pointer]:
+          - /url: /
+        - link "我的订单" [ref=e11] [cursor=pointer]:
+          - /url: /orders
+        - link "创建需求" [ref=e12] [cursor=pointer]:
+          - /url: /create
+        - link "AI 建模" [ref=e13] [cursor=pointer]:
+          - /url: /ai
+        - link "使用手册" [ref=e14] [cursor=pointer]:
+          - /url: /manual
+      - generic [ref=e99]:
+        - generic [ref=e100]: 小陈 · 大一
+        - button "退出" [ref=e102] [cursor=pointer]
+  - generic [ref=e294]:
+    - generic [ref=e295]: 打印平台 256×256×256mm · 拖拽旋转视角 · 右键平移 · 滚轮缩放
+    - generic [ref=e299]:
+      - generic [ref=e300]:
+        - generic [ref=e301]: 需求 O1
+        - generic [ref=e302]: 尺寸：43.8 × 55 × 43.8 mm
+        - generic [ref=e303]: 角度：0° 0° 0° NaN° · 缩放 ×1 · 1 个
+      - button "摆放操作（§4.3）" [ref=e306] [cursor=pointer]
+      - generic [ref=e311]:
+        - generic [ref=e312]: 耗材与参数
+        - generic [ref=e313]:
+          - generic [ref=e314]:
+            - generic [ref=e315]: 耗材材料
+            - generic [ref=e318] [cursor=pointer]:
+              - generic:
+                - combobox "耗材材料" [ref=e320]
+                - generic [ref=e321]: PLA 聚乳酸 · 0.1 元/g ×1
+          - group "颜色" [ref=e326]:
+            - generic [ref=e329]:
+              - generic [ref=e330] [cursor=pointer]
+              - generic [ref=e331] [cursor=pointer]
+              - generic [ref=e332] [cursor=pointer]
+              - generic [ref=e333] [cursor=pointer]
+              - generic [ref=e334] [cursor=pointer]
+              - generic [ref=e335] [cursor=pointer]
+              - generic [ref=e336] [cursor=pointer]
+              - generic [ref=e337] [cursor=pointer]
+          - generic [ref=e338]:
+            - generic [ref=e339]: 参数
+            - generic [ref=e340]:
+              - radiogroup "参数" [ref=e341]:
+                - generic [ref=e342] [cursor=pointer]:
+                  - radio "快速档（0.28mm/15%）" [ref=e344]
+                  - generic [ref=e346]: 快速档（0.28mm/15%）
+                - generic [ref=e347] [cursor=pointer]:
+                  - radio "标准档（0.2mm/20%）" [checked] [ref=e349]
+                  - generic [ref=e351]: 标准档（0.2mm/20%）
+                - generic [ref=e352] [cursor=pointer]:
+                  - radio "精细档（0.12mm/25%）" [ref=e354]
+                  - generic [ref=e356]: 精细档（0.12mm/25%）
+              - generic [ref=e357]: 进阶手动设置 →
+          - generic [ref=e362]:
+            - switch
+            - generic [ref=e363] [cursor=pointer]
+            - generic [ref=e365] [cursor=pointer]: 自备耗材（§16.3）
+      - button "提交 Val1 审核" [ref=e367] [cursor=pointer]
+      - button "返回订单" [ref=e369] [cursor=pointer]
+  - button "🧑‍🔧" [ref=e71] [cursor=pointer]

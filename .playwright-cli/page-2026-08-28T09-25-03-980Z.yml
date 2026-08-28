@@ -1,0 +1,52 @@
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - generic [ref=e5]:
+      - generic [ref=e6] [cursor=pointer]:
+        - generic [ref=e7]: 🧪
+        - generic [ref=e8]: 3D 打印小屋
+      - navigation [ref=e9]:
+        - link "首页" [ref=e10] [cursor=pointer]:
+          - /url: /
+        - link "我的订单" [ref=e11] [cursor=pointer]:
+          - /url: /orders
+        - link "创建需求" [ref=e12] [cursor=pointer]:
+          - /url: /create
+        - link "AI 建模" [ref=e13] [cursor=pointer]:
+          - /url: /ai
+        - link "使用手册" [ref=e14] [cursor=pointer]:
+          - /url: /manual
+      - generic [ref=e99]:
+        - generic [ref=e100]: 小陈 · 大一
+        - button "退出" [ref=e102] [cursor=pointer]
+  - generic [ref=e162]:
+    - heading "我的订单" [level=1] [ref=e163]
+    - paragraph [ref=e164]: 每个打印需求都在所属活动中独立流转（两级状态机：活动 4 态 × 订单 16 态）
+    - generic [ref=e165]:
+      - radiogroup "radio-group" [ref=e166]:
+        - generic [ref=e167]:
+          - radio "全部" [checked] [ref=e168]
+          - generic [ref=e169] [cursor=pointer]: 全部
+        - generic [ref=e170]:
+          - radio "进行中" [ref=e171]
+          - generic [ref=e172] [cursor=pointer]: 进行中
+        - generic [ref=e173]:
+          - radio "已完成" [ref=e174]
+          - generic [ref=e175] [cursor=pointer]: 已完成
+        - generic [ref=e176]:
+          - radio "已终止" [ref=e177]
+          - generic [ref=e178] [cursor=pointer]: 已终止
+      - button "+ 新建需求" [ref=e179] [cursor=pointer]
+    - generic [ref=e182]:
+      - table [ref=e184]:
+        - rowgroup [ref=e191]:
+          - row [ref=e192]:
+            - columnheader "需求" [ref=e193]
+            - columnheader "状态" [ref=e195]
+            - columnheader "主链进度" [ref=e197]
+            - columnheader "费用" [ref=e199]
+            - columnheader [ref=e201]
+      - generic [ref=e205]:
+        - table:
+          - rowgroup
+        - paragraph [ref=e227]: 还没有打印需求，点右上角新建一个吧
+  - button "🧑‍🔧" [ref=e71] [cursor=pointer]

@@ -1,0 +1,69 @@
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - generic [ref=e5]:
+      - generic [ref=e6] [cursor=pointer]:
+        - generic [ref=e7]: 🧪
+        - generic [ref=e8]: 3D 打印小屋
+      - navigation [ref=e9]:
+        - link "首页" [ref=e10] [cursor=pointer]:
+          - /url: /
+        - link "我的订单" [ref=e11] [cursor=pointer]:
+          - /url: /orders
+        - link "创建需求" [ref=e12] [cursor=pointer]:
+          - /url: /create
+        - link "AI 建模" [ref=e13] [cursor=pointer]:
+          - /url: /ai
+        - link "使用手册" [ref=e14] [cursor=pointer]:
+          - /url: /manual
+      - link [ref=e15] [cursor=pointer]:
+        - /url: /login
+        - button "登录" [ref=e16]
+  - generic [ref=e19]:
+    - generic [ref=e20]:
+      - generic [ref=e21]:
+        - generic [ref=e22]:
+          - heading "测试第2场" [level=1] [ref=e23]
+          - generic [ref=e25]: 单场 ≤ 20 人
+        - generic [ref=e26]:
+          - generic [ref=e27]: 活动密码（取件用）
+          - generic [ref=e28]: E3DP-20260828
+      - paragraph [ref=e29]: 最终解释权归 FRC Team 6940 所有，任何人不得用作商业用途。
+      - generic [ref=e30]:
+        - button "我要打印" [ref=e31] [cursor=pointer]
+        - button "AI 建模" [ref=e33] [cursor=pointer]
+        - button "我的订单" [ref=e35] [cursor=pointer]
+      - separator [ref=e37]:
+        - generic [ref=e38]: 打印主链
+      - generic [ref=e39]:
+        - generic [ref=e40]: 创建
+        - generic [ref=e41]: →
+        - generic [ref=e42]: 摆放
+        - generic [ref=e43]: →
+        - generic [ref=e44]: Val1
+        - generic [ref=e45]: →
+        - generic [ref=e46]: 耗材/参数
+        - generic [ref=e47]: →
+        - generic [ref=e48]: 切片
+        - generic [ref=e49]: →
+        - generic [ref=e50]: Val2
+        - generic [ref=e51]: →
+        - generic [ref=e52]: 打印
+        - generic [ref=e53]: →
+        - generic [ref=e54]: Val3
+        - generic [ref=e55]: →
+        - generic [ref=e56]: 核算
+      - generic [ref=e57]: Val1 管能不能制造 · Val2 管这个任务能不能放行 · Val3 管实物合不合格
+    - generic [ref=e58]:
+      - generic [ref=e59]:
+        - generic [ref=e60]: 📦 取件信息（§16.1）
+        - generic [ref=e61]: 创客空间 A 区货架（凭活动密码 + 需求编号取件） 时间：活动次日 12:00-18:00 凭证：活动密码 + 需求编号
+      - generic [ref=e62]:
+        - generic [ref=e63]: 🧑‍🏫 线下负责人（§16.2）
+        - generic [ref=e64]: 大一：李同学 138****1024 / 王同学 139****8876
+        - generic [ref=e65]: 大二：张同学 137****3345 / 刘同学 136****9901
+        - generic [ref=e66]: 大三：陈同学 135****2210 / 赵同学 133****5678
+        - generic [ref=e67]: 大四：周同学 132****4456 / 吴同学 131****7789
+      - generic [ref=e68]:
+        - generic [ref=e69]: 🧾 费用构成（§11）
+        - generic [ref=e70]: 耗材费 = 成本价 × 重量 × 系数（+ 换料补偿） 维护费（打印头磨损摊分）+ API 用量费非营利，活动结束统一核算收款
+  - button "🧑‍🔧" [ref=e71] [cursor=pointer]
