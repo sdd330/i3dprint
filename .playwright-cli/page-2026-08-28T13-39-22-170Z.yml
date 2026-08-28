@@ -1,0 +1,104 @@
+- generic [ref=f2e3]:
+  - banner [ref=f2e4]:
+    - generic [ref=f2e5]:
+      - generic [ref=f2e6] [cursor=pointer]:
+        - generic [ref=f2e7]: 🧪
+        - generic [ref=f2e8]: 3D 打印小屋
+      - navigation [ref=f2e9]:
+        - link "首页" [ref=f2e10] [cursor=pointer]:
+          - /url: /
+        - link "我的订单" [ref=f2e11] [cursor=pointer]:
+          - /url: /orders
+        - link "创建需求" [ref=f2e12] [cursor=pointer]:
+          - /url: /create
+        - link "AI 建模" [ref=f2e13] [cursor=pointer]:
+          - /url: /ai
+        - link "使用手册" [ref=f2e14] [cursor=pointer]:
+          - /url: /manual
+      - generic [ref=f2e15]:
+        - generic [ref=f2e16]: 小陈 · 大一
+        - button "退出" [ref=f2e18] [cursor=pointer]
+  - generic [ref=f2e229]:
+    - generic [ref=f2e231]:
+      - text: 参数配置预览 · 打印平台 256×256×256mm
+      - generic [ref=f2e232]: 尺寸：80 × 45 × 60 mm
+    - generic [ref=f2e235]:
+      - generic [ref=f2e236]:
+        - generic [ref=f2e237]: 需求 O8 · 参数配置（§4.2）
+        - generic [ref=f2e238]: 摆放已锁定（0° 0° 0° / ×1），预览为摆放后状态
+      - generic [ref=f2e239]:
+        - generic [ref=f2e240]:
+          - generic [ref=f2e241]: 耗材材料
+          - generic [ref=f2e244] [cursor=pointer]:
+            - generic:
+              - combobox "耗材材料" [ref=f2e246]
+              - generic [ref=f2e247]: PLA 聚乳酸 · 0.1 元/g ×1
+        - group "颜色" [ref=f2e252]:
+          - generic [ref=f2e255]:
+            - generic [ref=f2e256] [cursor=pointer]
+            - generic [ref=f2e257] [cursor=pointer]
+            - generic [ref=f2e258] [cursor=pointer]
+            - generic [ref=f2e259] [cursor=pointer]
+            - generic [ref=f2e260] [cursor=pointer]
+            - generic [ref=f2e261] [cursor=pointer]
+            - generic [ref=f2e262] [cursor=pointer]
+            - generic [ref=f2e263] [cursor=pointer]
+        - generic [ref=f2e264]:
+          - generic [ref=f2e265]: 打印参数
+          - generic [ref=f2e266]:
+            - radiogroup "打印参数" [ref=f2e267]:
+              - generic [ref=f2e268] [cursor=pointer]:
+                - radio "快速档（0.28mm/15%）" [ref=f2e270]
+                - generic [ref=f2e272]: 快速档（0.28mm/15%）
+              - generic [ref=f2e273] [cursor=pointer]:
+                - radio "标准档（0.2mm/20%）" [checked] [ref=f2e275]
+                - generic [ref=f2e277]: 标准档（0.2mm/20%）
+              - generic [ref=f2e278] [cursor=pointer]:
+                - radio "精细档（0.12mm/25%）" [ref=f2e280]
+                - generic [ref=f2e282]: 精细档（0.12mm/25%）
+            - generic [ref=f2e283]: 进阶手动设置 →
+        - generic [ref=f2e288]:
+          - switch
+          - generic [ref=f2e289] [cursor=pointer]
+          - generic [ref=f2e291] [cursor=pointer]: 自备耗材（§16.3）
+      - button "提交切片（云端 OrcaSlicer）" [ref=f2e293] [cursor=pointer]
+      - button "← 返回摆放" [ref=f2e295] [cursor=pointer]
+    - dialog [ref=f2e298]:
+      - generic [ref=f2e299]:
+        - banner [ref=f2e300]:
+          - text: 切片预览（§6）
+          - button "关闭此对话框" [ref=f2e301] [cursor=pointer]
+        - generic [ref=f2e306]:
+          - alert [ref=f2e307]:
+            - generic [ref=f2e308]:
+              - generic [ref=f2e309]: 切片完成，请预览后确认（§6）：满意则提交 Val2 审核，不满意可返回调整
+              - paragraph [ref=f2e310]: 切片器：OrcaSlicer 2.4.2 (CLI) · 预计 60min / 31.45g
+          - table [ref=f2e313]:
+            - rowgroup [ref=f2e314]:
+              - row [ref=f2e315]:
+                - cell "层数" [ref=f2e316]
+                - cell "60" [ref=f2e317]
+                - cell "路径长度" [ref=f2e318]
+                - cell "0 km" [ref=f2e319]
+              - row [ref=f2e320]:
+                - cell "支撑" [ref=f2e321]
+                - cell "树形（自动）" [ref=f2e322]
+                - cell "Val2 自动检查" [ref=f2e323]
+                - cell "通过" [ref=f2e324]
+              - row [ref=f2e325]:
+                - cell "数据来源" [ref=f2e326]
+                - cell "OrcaSlicer 输出" [ref=f2e327]
+          - generic [ref=f2e329]:
+            - button "进阶：逐层路径预览（§6.2 / §7.3，真实切片路径）" [expanded] [active] [ref=f2e330] [cursor=pointer]
+            - region "进阶：逐层路径预览（§6.2 / §7.3，真实切片路径）" [ref=f2e340]:
+              - generic [ref=f2e345]:
+                - generic [ref=f2e346]:
+                  - generic [ref=f2e347]: 第 41 / 81 层
+                  - generic [ref=f2e348]: Z = 8.20mm
+                - slider "滑块介于 0 至 80" [ref=f2e352] [cursor=pointer]
+                - generic [ref=f2e354]: 层高 0.2mm · 橙色为挤出路径（含外壁/内壁/填充/支撑）
+                - generic [ref=f2e355]: 数据源：OrcaSlicer 切片产物 plate_1.gcode（§6.2），真实打印路径
+          - generic [ref=f2e335]:
+            - button "← 返回调整" [ref=f2e336] [cursor=pointer]
+            - button "预览满意，提交审核 →" [ref=f2e338] [cursor=pointer]
+  - button "🧑‍🔧" [ref=f2e48] [cursor=pointer]

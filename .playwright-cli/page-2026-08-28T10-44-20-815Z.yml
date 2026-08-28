@@ -1,0 +1,71 @@
+- generic [active] [ref=f1e1]:
+  - generic [ref=f1e3]:
+    - banner [ref=f1e4]:
+      - generic [ref=f1e5]:
+        - generic [ref=f1e6] [cursor=pointer]:
+          - generic [ref=f1e7]: 🧪
+          - generic [ref=f1e8]: 3D 打印小屋
+        - navigation [ref=f1e9]:
+          - link "首页" [ref=f1e10] [cursor=pointer]:
+            - /url: /
+          - link "我的订单" [ref=f1e11] [cursor=pointer]:
+            - /url: /orders
+          - link "创建需求" [ref=f1e12] [cursor=pointer]:
+            - /url: /create
+          - link "AI 建模" [ref=f1e13] [cursor=pointer]:
+            - /url: /ai
+          - link "使用手册" [ref=f1e14] [cursor=pointer]:
+            - /url: /manual
+        - generic [ref=f1e15]:
+          - generic [ref=f1e16]: 小陈 · 大一
+          - button "退出" [ref=f1e18] [cursor=pointer]
+    - generic [ref=f1e78]:
+      - generic [ref=f1e79]: 打印平台 256×256×256mm · 拖拽旋转视角 · 右键平移 · 滚轮缩放
+      - generic [ref=f1e83]:
+        - generic [ref=f1e84]:
+          - generic [ref=f1e85]: 需求 O6
+          - generic [ref=f1e86]: 尺寸：0.3 × 0.4 × 1 mm
+          - generic [ref=f1e87]: 角度：0° 0° 0° · 缩放 ×1 / 1 / 1 · 1 个
+        - button "摆放操作（§4.3）" [ref=f1e90] [cursor=pointer]
+        - generic [ref=f1e95]:
+          - generic [ref=f1e96]: 耗材与参数
+          - generic [ref=f1e97]:
+            - generic [ref=f1e98]:
+              - generic [ref=f1e99]: 耗材材料
+              - generic [ref=f1e102] [cursor=pointer]:
+                - generic:
+                  - combobox "耗材材料" [ref=f1e104]
+                  - generic [ref=f1e105]: PLA 聚乳酸 · 0.1 元/g ×1
+            - group "颜色" [ref=f1e110]:
+              - generic [ref=f1e113]:
+                - generic [ref=f1e114] [cursor=pointer]
+                - generic [ref=f1e115] [cursor=pointer]
+                - generic [ref=f1e116] [cursor=pointer]
+                - generic [ref=f1e117] [cursor=pointer]
+                - generic [ref=f1e118] [cursor=pointer]
+                - generic [ref=f1e119] [cursor=pointer]
+                - generic [ref=f1e120] [cursor=pointer]
+                - generic [ref=f1e121] [cursor=pointer]
+            - generic [ref=f1e122]:
+              - generic [ref=f1e123]: 参数
+              - generic [ref=f1e124]:
+                - radiogroup "参数" [ref=f1e125]:
+                  - generic [ref=f1e126] [cursor=pointer]:
+                    - radio "快速档（0.28mm/15%）" [ref=f1e128]
+                    - generic [ref=f1e130]: 快速档（0.28mm/15%）
+                  - generic [ref=f1e131] [cursor=pointer]:
+                    - radio "标准档（0.2mm/20%）" [checked] [ref=f1e133]
+                    - generic [ref=f1e135]: 标准档（0.2mm/20%）
+                  - generic [ref=f1e136] [cursor=pointer]:
+                    - radio "精细档（0.12mm/25%）" [ref=f1e138]
+                    - generic [ref=f1e140]: 精细档（0.12mm/25%）
+                - generic [ref=f1e141]: 进阶手动设置 →
+            - generic [ref=f1e146]:
+              - switch
+              - generic [ref=f1e147] [cursor=pointer]
+              - generic [ref=f1e149] [cursor=pointer]: 自备耗材（§16.3）
+        - button "提交 Val1 审核" [ref=f1e151] [cursor=pointer]
+        - button "返回订单" [ref=f1e153] [cursor=pointer]
+    - button "🧑‍🔧" [ref=f1e48] [cursor=pointer]
+  - alert [ref=f1e155]:
+    - paragraph [ref=f1e159]: 模型解析完成（6,018 面）

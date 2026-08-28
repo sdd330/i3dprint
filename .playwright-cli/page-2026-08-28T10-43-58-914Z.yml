@@ -1,0 +1,100 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e3]:
+    - banner [ref=e4]:
+      - generic [ref=e5]:
+        - generic [ref=e6] [cursor=pointer]:
+          - generic [ref=e7]: 🧪
+          - generic [ref=e8]: 3D 打印小屋
+        - navigation [ref=e9]:
+          - link "首页" [ref=e10] [cursor=pointer]:
+            - /url: /
+          - link "我的订单" [ref=e11] [cursor=pointer]:
+            - /url: /orders
+          - link "创建需求" [ref=e12] [cursor=pointer]:
+            - /url: /create
+          - link "AI 建模" [ref=e13] [cursor=pointer]:
+            - /url: /ai
+          - link "使用手册" [ref=e14] [cursor=pointer]:
+            - /url: /manual
+        - generic [ref=e46]:
+          - generic [ref=e47]: 小陈 · 大一
+          - button "退出" [ref=e49] [cursor=pointer]
+    - generic [ref=e51]:
+      - generic [ref=e52]:
+        - generic [ref=e53]:
+          - generic [ref=e54]:
+            - generic [ref=e55]:
+              - heading "2026 秋季第 1 场 · 3D 打印体验活动" [level=1] [ref=e56]
+              - generic [ref=e58]: 单场 ≤ 20 人
+            - generic [ref=e59]:
+              - generic [ref=e60]: 活动密码（取件用）
+              - generic [ref=e61]: E3DP-AUTUMN
+          - paragraph [ref=e62]: 最终解释权归 FRC Team 6940 所有，任何人不得用作商业用途。
+          - generic [ref=e63]:
+            - button "我要打印" [ref=e64] [cursor=pointer]
+            - button "AI 建模" [ref=e66] [cursor=pointer]
+            - button "我的订单" [ref=e68] [cursor=pointer]
+          - separator [ref=e70]:
+            - generic [ref=e71]: 打印主链
+          - generic [ref=e72]:
+            - generic [ref=e73]: 创建
+            - generic [ref=e74]: →
+            - generic [ref=e75]: 摆放
+            - generic [ref=e76]: →
+            - generic [ref=e77]: Val1
+            - generic [ref=e78]: →
+            - generic [ref=e79]: 耗材/参数
+            - generic [ref=e80]: →
+            - generic [ref=e81]: 切片
+            - generic [ref=e82]: →
+            - generic [ref=e83]: Val2
+            - generic [ref=e84]: →
+            - generic [ref=e85]: 打印
+            - generic [ref=e86]: →
+            - generic [ref=e87]: Val3
+            - generic [ref=e88]: →
+            - generic [ref=e89]: 核算
+          - generic [ref=e90]: Val1 管能不能制造 · Val2 管这个任务能不能放行 · Val3 管实物合不合格
+        - generic [ref=e91]:
+          - generic [ref=e92]:
+            - generic [ref=e93]: 📦 取件信息（§16.1）
+            - generic [ref=e94]: 创客空间 A 区货架（凭活动密码 + 需求编号取件） 时间：活动次日 12:00-18:00 凭证：活动密码 + 需求编号
+          - generic [ref=e95]:
+            - generic [ref=e96]: 🧑‍🏫 线下负责人（§16.2）
+            - generic [ref=e97]: 大一：李同学 138****1024 / 王同学 139****8876
+            - generic [ref=e98]: 大二：张同学 137****3345 / 刘同学 136****9901
+            - generic [ref=e99]: 大三：陈同学 135****2210 / 赵同学 133****5678
+            - generic [ref=e100]: 大四：周同学 132****4456 / 吴同学 131****7789
+          - generic [ref=e101]:
+            - generic [ref=e102]: 🧾 费用构成（§11）
+            - generic [ref=e103]: 耗材费 = 成本价 × 重量 × 系数（+ 换料补偿） 维护费（打印头磨损摊分）+ API 用量费非营利，活动结束统一核算收款
+      - generic [ref=e104]:
+        - heading "我的最近订单" [level=3] [ref=e105]
+        - generic [ref=e108]:
+          - table [ref=e110]:
+            - rowgroup [ref=e117]:
+              - row [ref=e118]:
+                - columnheader "编号" [ref=e119]
+                - columnheader "需求" [ref=e121]
+                - columnheader "状态" [ref=e123]
+                - columnheader "费用" [ref=e125]
+                - columnheader [ref=e127]
+          - table [ref=e132]:
+            - rowgroup [ref=e139]:
+              - row [ref=e140]:
+                - cell "O5" [ref=e141]
+                - cell "Violet" [ref=e143]
+                - cell "模型处理中" [ref=e145]
+                - cell "¥0.00" [ref=e148]
+                - cell [ref=e150]:
+                  - button "追踪" [ref=e152] [cursor=pointer]
+              - row [ref=e154]:
+                - cell "O1" [ref=e155]
+                - cell "内置模型 · vase" [ref=e157]
+                - cell "已完成" [ref=e159]
+                - cell "¥3.24" [ref=e162]
+                - cell [ref=e164]:
+                  - button "追踪" [ref=e166] [cursor=pointer]
+    - button "🧑‍🔧" [ref=e43] [cursor=pointer]
+  - alert [ref=e168]:
+    - paragraph [ref=e172]: 欢迎回来～

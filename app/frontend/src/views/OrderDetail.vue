@@ -1,10 +1,11 @@
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, reactive, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { api } from '@/api'
 import { useAppStore } from '@/stores'
 import StatusTag from '@/components/StatusTag.vue'
+import AdvancedParamsForm from '@/components/AdvancedParamsForm.vue'
 import ChainView from '@/components/ChainView.vue'
 
 const route = useRoute()
@@ -14,6 +15,8 @@ const order = ref(null)
 const loading = ref(true)
 const feedbackText = ref('')
 const resliceParams = ref({ preset: 'standard' })
+const advancedParams = reactive({ layer_height: 0.2, wall_loops: 2, infill_density: 20, infill_pattern: 'grid', outer_wall_speed: 200, travel_speed: 500, nozzle_temperature: 220, bed_temperature: 65, enable_support: '0', support_type: 'normal(auto)', support_threshold_angle: 30, retraction_length: 0.8 })
+const resliceAdvanced = ref(false)
 const resliceDialog = ref(false)
 
 const id = Number(route.params.id)
@@ -45,9 +48,11 @@ async function settle() {
 }
 
 async function doReslice() {
+  const params = resliceAdvanced.value
+    ? { preset: null, advanced: { ...advancedParams } }
+    : { preset: resliceParams.value.preset }
   await api.post(`/orders/${id}/reslice`, {
-    params: resliceParams.value.preset ? { preset: resliceParams.value.preset } : resliceParams.value,
-    material_id: order.value.material_id, color: order.value.color,
+    params, material_id: order.value.material_id, color: order.value.color,
   })
   ElMessage.success('已重新切片，提交 Val2 审核')
   resliceDialog.value = false
@@ -56,8 +61,15 @@ async function doReslice() {
 
 function canAct() {
   const s = order.value?.status
+  const lastIssue = order.value?.issues?.at(-1)
+  const isModel = lastIssue?.type === 'MODEL'
   return {
-    reslice: s === 'val2_failed' || (s === 'rework' && order.value?.issues?.at(-1)?.type !== 'MACHINE'),
+    // 参数问题 → 调参重切（§10.1 / §7.6）
+    reslice: s === 'val2_failed' ? !isModel : (s === 'rework' && lastIssue?.type === 'PARAMETER'),
+    // 模型问题 → 更换/重新上传模型，重走 Val1（§10.3 / §7.6）
+    changeModel: (s === 'val2_failed' || s === 'rework') && isModel,
+    // 设备问题 → 等待负责人安排半价重打（§10.2）
+    machineWait: s === 'rework' && lastIssue?.type === 'MACHINE',
     feedback: s === 'val3_pending',
     settle: s === 'settlement',
     workspace: ['draft', 'modeling', 'val1_failed'].includes(s),
@@ -79,8 +91,11 @@ onMounted(() => { app.loadMeta(); load() })
             <StatusTag :status="order.status" />
           </p>
         </div>
-        <div style="display: flex; gap: 8px">
+        <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap">
           <el-button v-if="canAct().workspace" type="primary" @click="router.push(`/create/${id}/workspace`)">继续摆放</el-button>
+          <el-button v-if="canAct().changeModel" type="warning" @click="router.push(`/create?id=${id}`)">更换 / 重新上传模型（重走 Val1）</el-button>
+          <el-alert v-if="canAct().machineWait" type="info" :closable="false" style="padding: 6px 12px"
+                    title="设备问题：等待负责人处理设备后安排半价重打（§10.2）" />
           <el-button v-if="canAct().settle" type="success" @click="settle">结清（计入活动账单）</el-button>
           <el-button v-if="canAct().reslice" type="warning" @click="resliceDialog = true">调整参数重新切片</el-button>
         </div>
@@ -186,13 +201,24 @@ onMounted(() => { app.loadMeta(); load() })
       </div>
 
       <!-- 重切对话框 -->
-      <el-dialog v-model="resliceDialog" title="调整参数重新切片（§7.6 / §10.1）" width="420px">
+      <el-dialog v-model="resliceDialog" title="调整参数重新切片（§7.6 / §10.1）" width="440px">
         <el-form label-position="top">
-          <el-form-item label="标准档">
-            <el-select v-model="resliceParams.preset" style="width: 100%">
-              <el-option v-for="p in app.meta?.presets || []" :key="p.id" :value="p.id" :label="`${p.name}（${p.layer_height}mm/${p.infill}%）`" />
-            </el-select>
+          <el-form-item label="参数模式">
+            <el-radio-group v-model="resliceAdvanced">
+              <el-radio-button :value="false">标准档</el-radio-button>
+              <el-radio-button :value="true">进阶手动</el-radio-button>
+            </el-radio-group>
           </el-form-item>
+          <template v-if="!resliceAdvanced">
+            <el-form-item label="标准档">
+              <el-select v-model="resliceParams.preset" style="width: 100%">
+                <el-option v-for="p in app.meta?.presets || []" :key="p.id" :value="p.id" :label="`${p.name}（${p.layer_height}mm/${p.infill}%）`" />
+              </el-select>
+            </el-form-item>
+          </template>
+          <template v-else>
+            <AdvancedParamsForm v-model="advancedParams" />
+          </template>
         </el-form>
         <template #footer>
           <el-button @click="resliceDialog = false">取消</el-button>

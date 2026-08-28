@@ -21,7 +21,7 @@ TRANSITIONS = {
     "val2_failed": ["slicing", "modeling", "terminated"],  # 参数/切片→重切；模型→新版本Val1；内容不合规→终止
     "queued": ["printing", "terminated"],
     "printing": ["val3_pending", "queued", "terminated"],  # 打印异常→重新排队（§16.4）
-    "val3_pending": ["settlement", "val3_failed", "rework"],
+    "val3_pending": ["settlement", "val3_failed", "rework", "terminated"],  # §10.4 设备能力上限 → 终止
     "val3_failed": ["rework", "terminated"],
     "rework": ["slicing", "modeling", "queued", "terminated"],  # 参数→重切；模型→新版本Val1；设备→重打
     "settlement": ["completed", "terminated"],

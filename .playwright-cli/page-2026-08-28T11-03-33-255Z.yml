@@ -1,0 +1,132 @@
+- generic [ref=f2e3]:
+  - banner [ref=f2e4]:
+    - generic [ref=f2e5]:
+      - generic [ref=f2e6] [cursor=pointer]:
+        - generic [ref=f2e7]: 🧪
+        - generic [ref=f2e8]: 3D 打印小屋
+      - navigation [ref=f2e9]:
+        - link "首页" [ref=f2e10] [cursor=pointer]:
+          - /url: /
+        - link "我的订单" [ref=f2e11] [cursor=pointer]:
+          - /url: /orders
+        - link "创建需求" [ref=f2e12] [cursor=pointer]:
+          - /url: /create
+        - link "AI 建模" [ref=f2e13] [cursor=pointer]:
+          - /url: /ai
+        - link "使用手册" [ref=f2e14] [cursor=pointer]:
+          - /url: /manual
+      - generic [ref=f2e15]:
+        - generic [ref=f2e16]: 小陈 · 大一
+        - button "退出" [ref=f2e18] [cursor=pointer]
+  - generic [ref=f2e44]:
+    - generic [ref=f2e46]:
+      - text: 参数配置预览 · 打印平台 256×256×256mm
+      - generic [ref=f2e47]: 尺寸：43.8 × 55 × 43.8 mm
+    - generic [ref=f2e50]:
+      - generic [ref=f2e51]:
+        - generic [ref=f2e52]: 需求 O8 · 参数配置（§4.2）
+        - generic [ref=f2e53]: 摆放已锁定（0° 0° 0° / ×1），预览为摆放后状态
+      - generic [ref=f2e54]:
+        - generic [ref=f2e55]:
+          - generic [ref=f2e56]: 耗材材料
+          - generic [ref=f2e59] [cursor=pointer]:
+            - generic:
+              - combobox "耗材材料" [ref=f2e61]
+              - generic [ref=f2e62]: PLA 聚乳酸 · 0.1 元/g ×1
+        - group "颜色" [ref=f2e67]:
+          - generic [ref=f2e70]:
+            - generic [ref=f2e71] [cursor=pointer]
+            - generic [ref=f2e72] [cursor=pointer]
+            - generic [ref=f2e73] [cursor=pointer]
+            - generic [ref=f2e74] [cursor=pointer]
+            - generic [ref=f2e75] [cursor=pointer]
+            - generic [ref=f2e76] [cursor=pointer]
+            - generic [ref=f2e77] [cursor=pointer]
+            - generic [ref=f2e78] [cursor=pointer]
+        - generic [ref=f2e79]:
+          - generic [ref=f2e80]: 打印参数
+          - generic [ref=f2e81]:
+            - radiogroup "打印参数" [ref=f2e82]:
+              - generic [ref=f2e83] [cursor=pointer]:
+                - radio "快速档（0.28mm/15%）" [ref=f2e85]
+                - generic [ref=f2e87]: 快速档（0.28mm/15%）
+              - generic [ref=f2e88] [cursor=pointer]:
+                - radio "标准档（0.2mm/20%）" [checked] [ref=f2e90]
+                - generic [ref=f2e92]: 标准档（0.2mm/20%）
+              - generic [ref=f2e93] [cursor=pointer]:
+                - radio "精细档（0.12mm/25%）" [ref=f2e95]
+                - generic [ref=f2e97]: 精细档（0.12mm/25%）
+            - generic [ref=f2e98]: 进阶手动设置 →
+        - generic [ref=f2e103]:
+          - switch
+          - generic [ref=f2e104] [cursor=pointer]
+          - generic [ref=f2e106] [cursor=pointer]: 自备耗材（§16.3）
+      - button "提交 Val1 审核" [ref=f2e108] [cursor=pointer]
+      - button "← 返回摆放" [ref=f2e110] [cursor=pointer]
+    - dialog [ref=f2e118]:
+      - generic [active] [ref=f2e119]:
+        - banner [ref=f2e120]:
+          - text: Val1 模型审核结果（§5）
+          - button "关闭此对话框" [ref=f2e121] [cursor=pointer]
+        - generic [ref=f2e126]:
+          - alert [ref=f2e127]:
+            - generic [ref=f2e131]:
+              - generic [ref=f2e132]: 审核结果：通过
+              - paragraph [ref=f2e133]: 模型满足制造条件，可通过
+          - generic [ref=f2e135]:
+            - table [ref=f2e137]:
+              - rowgroup [ref=f2e142]:
+                - row [ref=f2e143]:
+                  - columnheader "检查项" [ref=f2e144]
+                  - columnheader "结果" [ref=f2e146]
+                  - columnheader "说明" [ref=f2e148]
+            - table [ref=f2e154]:
+              - rowgroup [ref=f2e159]:
+                - row [ref=f2e160]:
+                  - cell "文件完整" [ref=f2e161]
+                  - cell "通过" [ref=f2e163]
+                  - cell "模型文件解析成功" [ref=f2e166]
+                - row [ref=f2e168]:
+                  - cell "模型封闭" [ref=f2e169]
+                  - cell "通过" [ref=f2e171]
+                  - cell "模型为封闭实体" [ref=f2e174]
+                - row [ref=f2e176]:
+                  - cell "非流形结构" [ref=f2e177]
+                  - cell "通过" [ref=f2e179]
+                  - cell "模型为流形结构" [ref=f2e182]
+                - row [ref=f2e184]:
+                  - cell "模型自交" [ref=f2e185]
+                  - cell "通过" [ref=f2e187]
+                  - cell "未检出自相交面片" [ref=f2e190]
+                - row [ref=f2e192]:
+                  - cell "模型尺寸" [ref=f2e193]
+                  - cell "通过" [ref=f2e195]
+                  - cell "模型尺寸 43.8×55×43.8mm，在设备范围内" [ref=f2e198]
+                - row [ref=f2e200]:
+                  - cell "壁厚" [ref=f2e201]
+                  - cell "通过" [ref=f2e203]
+                  - cell "最小壁厚 15.9mm，满足要求" [ref=f2e206]
+                - row [ref=f2e208]:
+                  - cell "悬垂结构" [ref=f2e209]
+                  - cell "通过" [ref=f2e211]
+                  - cell "悬垂占比 25.0%，结构合理" [ref=f2e214]
+                - row [ref=f2e216]:
+                  - cell "材料匹配" [ref=f2e217]
+                  - cell "通过" [ref=f2e219]
+                  - cell "所选材料已确认匹配" [ref=f2e222]
+                - row [ref=f2e224]:
+                  - cell "基础参数" [ref=f2e225]
+                  - cell "通过" [ref=f2e227]
+                  - cell "参数档「standard」合理" [ref=f2e230]
+                - row [ref=f2e232]:
+                  - cell "能否切片" [ref=f2e233]
+                  - cell "通过" [ref=f2e235]
+                  - cell "模型可通过切片器处理" [ref=f2e238]
+          - generic [ref=f2e240]:
+            - alert [ref=f2e241]:
+              - generic [ref=f2e242]:
+                - generic [ref=f2e243]: 模型通过，已完成云端切片，进入 Val2 人工审核
+                - paragraph [ref=f2e244]: 切片器：OrcaSlicer (模拟) · 预计 155min / 19.3g
+            - button "进阶：G-code 预览（切片输出，§6.2）" [ref=f2e247] [cursor=pointer]
+            - button "查看订单追踪" [ref=f2e252] [cursor=pointer]
+  - button "🧑‍🔧" [ref=f2e41] [cursor=pointer]

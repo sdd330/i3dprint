@@ -25,6 +25,7 @@ const route = useRoute()
             <el-divider direction="vertical" style="margin: 0 6px" />
             <router-link to="/admin">负责人工作台</router-link>
             <router-link to="/admin/config">配置中心</router-link>
+            <router-link to="/admin/settings">软件设置</router-link>
           </template>
         </nav>
         <div v-if="auth.isLoggedIn" style="display: flex; align-items: center; gap: 10px">

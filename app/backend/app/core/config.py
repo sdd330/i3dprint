@@ -42,9 +42,19 @@ class Settings(BaseSettings):
     tripo_base_url: str = "https://api.tripo3d.ai/v2"
     tripo_price_per_point: float = 0.0  # 元/点
 
-    # 切片器（设计文档 §6：OrcaSlicer CLI 服务端切片）
-    orca_slicer_path: str = "orca-slicer"  # 可执行文件路径，未安装时走模拟切片
+    # 上传限制（160MB 级大 OBJ 也可解析，但做上限防护）
+    max_upload_bytes: int = 300 * 1024 * 1024
+    # 几何分析超时（秒）：超过返回明确提示，不再无限阻塞
+    analysis_timeout_sec: int = 90
+
+    # 切片器（设计文档 §6：OrcaSlicer CLI 服务端切片，POC 通过后关闭 mock）
+    orca_slicer_path: str = "/Applications/OrcaSlicer.app/Contents/MacOS/OrcaSlicer"
     slicer_mock: bool = True  # 未配置真切片器时用估算模拟（§12 首版模拟）
+    slicer_max_concurrent: int = 2  # 云端切片最大并行数（软件设置可配）
+    # X1C 内置 profile（CLI 正确用法：--load-settings "machine;process" + --load-filaments）
+    orca_machine_profile: str = "/Applications/OrcaSlicer.app/Contents/Resources/profiles/BBL/machine/Bambu Lab X1 Carbon 0.4 nozzle.json"
+    orca_process_profile: str = "/Applications/OrcaSlicer.app/Contents/Resources/profiles/BBL/process/0.20mm Standard @BBL X1C.json"
+    orca_filament_profile: str = "/Applications/OrcaSlicer.app/Contents/Resources/profiles/BBL/filament/Bambu PLA Basic @BBL X1C.json"
 
     # 合规声明（决策清单 §10）
     compliance_statement: str = "最终解释权归 FRC Team 6940 所有，任何人不得用作商业用途。"

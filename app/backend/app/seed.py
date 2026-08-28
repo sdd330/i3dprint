@@ -4,7 +4,7 @@
 from sqlalchemy.orm import Session
 
 from .core.security import hash_password
-from .models import Campaign, ConfigTemplate, CostLedger, Model, ModelVersion, Order, PrintJob, QaKnowledge, Review, Role, User
+from .models import AppSetting, Campaign, ConfigTemplate, CostLedger, Model, ModelVersion, Order, PrintJob, QaKnowledge, Review, Role, User
 from .models.permissions import DEFAULT_ROLES
 
 # 配置中心 · 默认活动模板（决策清单 §14：全局基线，新建活动复制为活动参数副本）
@@ -67,7 +67,42 @@ DEFAULT_TEMPLATE_DATA = {
 }
 
 
+# 软件全局设置清单（环境变量图形化配置的落地点）
+APP_SETTINGS_META = [
+    ("deepseek_api_key", "external", "DeepSeek API Key", "站娘问答真实调用（留空为模拟回答）", "secret", False),
+    ("deepseek_base_url", "external", "DeepSeek Base URL", "OpenAI 兼容接口地址", "str", False),
+    ("deepseek_model", "external", "DeepSeek 模型", "如 deepseek-chat", "str", False),
+    ("tripo_api_key", "external", "Tripo API Key", "AI 建模真实调用（留空为程序化演示）", "secret", False),
+    ("orca_slicer_path", "slicer", "OrcaSlicer 可执行文件路径", "CLI 切片器；macOS 指向 app 内二进制", "str", False),
+    ("orca_machine_profile", "slicer", "打印机 profile", "X1C machine JSON（--load-settings 第 1 段）", "str", False),
+    ("orca_process_profile", "slicer", "工艺 profile", "X1C process JSON（--load-settings 第 2 段）", "str", False),
+    ("orca_filament_profile", "slicer", "耗材 profile", "--load-filaments 的 filament JSON", "str", False),
+    ("slicer_mock", "slicer", "切片模拟开关", "true=估算模拟（标注模拟估算）；false=真实 OrcaSlicer", "bool", False),
+    ("slicer_max_concurrent", "slicer", "最大并行切片数", "同时最多几个 OrcaSlicer 切片进程；超出排队等待（建议 2，单机 8 核）", "int", False),
+    ("max_upload_bytes", "service", "模型上传上限（字节）", "超过则拒绝上传", "int", False),
+    ("analysis_timeout_sec", "service", "几何分析超时（秒）", "大文件解析超过则提示", "int", False),
+    ("jwt_secret", "service", "JWT 密钥", "生产环境务必修改。更改后：① 所有登录会话失效；② 已保存的 API Key（DeepSeek/Tripo）将无法解密，需在软件设置中重新填写", "secret", True),
+    ("compliance_statement", "misc", "平台合规声明", "展示于首页/审核界面（FRC Team 6940）", "str", False),
+]
+
+
 def seed(db: Session):
+    # 软件全局设置（环境变量图形化配置落地点，决策清单 P5）
+    # upsert：已存在行仅同步元数据（label/hint/分类），保留用户设置的 value；缺失行以 env 默认值插入
+    from .core.config import settings
+    from .core.secrets_util import encrypt_secret
+    for key, cat, label, hint, vtype, restart in APP_SETTINGS_META:
+        row = db.query(AppSetting).filter_by(key=key).first()
+        if row:
+            row.label, row.hint, row.category, row.value_type, row.restart_required = label, hint, cat, vtype, restart
+        elif hasattr(settings, key):
+            val = str(getattr(settings, key))
+            if vtype == "secret" and val:
+                val = encrypt_secret(val)  # secret 加密落库
+            db.add(AppSetting(key=key, value=val, category=cat,
+                              label=label, hint=hint, value_type=vtype, restart_required=restart))
+    db.commit()
+
     # 角色（RBAC，决策清单 §9）
     if db.query(Role).count() == 0:
         for code, cfg in DEFAULT_ROLES.items():

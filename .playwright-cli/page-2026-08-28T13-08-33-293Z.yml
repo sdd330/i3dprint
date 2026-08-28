@@ -1,0 +1,96 @@
+- generic [ref=f1e3]:
+  - banner [ref=f1e4]:
+    - generic [ref=f1e5]:
+      - generic [ref=f1e6] [cursor=pointer]:
+        - generic [ref=f1e7]: 🧪
+        - generic [ref=f1e8]: 3D 打印小屋
+      - navigation [ref=f1e9]:
+        - link "首页" [ref=f1e10] [cursor=pointer]:
+          - /url: /
+        - link "我的订单" [ref=f1e11] [cursor=pointer]:
+          - /url: /orders
+        - link "创建需求" [ref=f1e12] [cursor=pointer]:
+          - /url: /create
+        - link "AI 建模" [ref=f1e13] [cursor=pointer]:
+          - /url: /ai
+        - link "使用手册" [ref=f1e14] [cursor=pointer]:
+          - /url: /manual
+      - generic [ref=f1e15]:
+        - generic [ref=f1e16]: 小陈 · 大一
+        - button "退出" [ref=f1e18] [cursor=pointer]
+  - generic [ref=f1e78]:
+    - generic [ref=f1e79]: 打印平台 256×256×256mm · 拖拽旋转视角 · 右键平移 · 滚轮缩放
+    - generic [ref=f1e83]:
+      - generic [ref=f1e84]:
+        - generic [ref=f1e85]: 需求 O7
+        - generic [ref=f1e86]: 尺寸：43.8 × 55 × 43.8 mm
+        - generic [ref=f1e87]: 角度：0° 0° 0° · 缩放 ×1 / 1 / 1 · 1 个
+      - button "摆放操作（§4.3）" [ref=f1e90] [cursor=pointer]
+      - button "提交 Val1 审核" [ref=f1e95] [cursor=pointer]
+      - button "返回订单" [ref=f1e97] [cursor=pointer]
+    - dialog [ref=f1e100]:
+      - generic [active] [ref=f1e101]:
+        - banner [ref=f1e102]:
+          - text: Val1 模型审核结果（§5）
+          - button "关闭此对话框" [ref=f1e103] [cursor=pointer]
+        - generic [ref=f1e108]:
+          - alert [ref=f1e109]:
+            - generic [ref=f1e113]:
+              - generic [ref=f1e114]: 审核结果：通过
+              - paragraph [ref=f1e115]: 模型满足制造条件，可通过
+          - generic [ref=f1e117]:
+            - table [ref=f1e119]:
+              - rowgroup [ref=f1e124]:
+                - row [ref=f1e125]:
+                  - columnheader "检查项" [ref=f1e126]
+                  - columnheader "结果" [ref=f1e128]
+                  - columnheader "说明" [ref=f1e130]
+            - table [ref=f1e136]:
+              - rowgroup [ref=f1e141]:
+                - row [ref=f1e142]:
+                  - cell "文件完整" [ref=f1e143]
+                  - cell "通过" [ref=f1e145]
+                  - cell "模型文件解析成功" [ref=f1e148]
+                - row [ref=f1e150]:
+                  - cell "模型封闭" [ref=f1e151]
+                  - cell "通过" [ref=f1e153]
+                  - cell "模型为封闭实体" [ref=f1e156]
+                - row [ref=f1e158]:
+                  - cell "非流形结构" [ref=f1e159]
+                  - cell "通过" [ref=f1e161]
+                  - cell "模型为流形结构" [ref=f1e164]
+                - row [ref=f1e166]:
+                  - cell "模型自交" [ref=f1e167]
+                  - cell "通过" [ref=f1e169]
+                  - cell "未检出自相交面片" [ref=f1e172]
+                - row [ref=f1e174]:
+                  - cell "模型尺寸" [ref=f1e175]
+                  - cell "通过" [ref=f1e177]
+                  - cell "模型尺寸 43.8×55×43.8mm，在设备范围内" [ref=f1e180]
+                - row [ref=f1e182]:
+                  - cell "壁厚" [ref=f1e183]
+                  - cell "通过" [ref=f1e185]
+                  - cell "最小壁厚 15.9mm，满足要求" [ref=f1e188]
+                - row [ref=f1e190]:
+                  - cell "悬垂结构" [ref=f1e191]
+                  - cell "通过" [ref=f1e193]
+                  - cell "悬垂占比 25.0%，结构合理" [ref=f1e196]
+                - row [ref=f1e198]:
+                  - cell "材料匹配" [ref=f1e199]
+                  - cell "通过" [ref=f1e201]
+                  - cell "未选择材料" [ref=f1e204]
+                - row [ref=f1e206]:
+                  - cell "基础参数" [ref=f1e207]
+                  - cell "通过" [ref=f1e209]
+                  - cell "使用默认参数" [ref=f1e212]
+                - row [ref=f1e214]:
+                  - cell "能否切片" [ref=f1e215]
+                  - cell "通过" [ref=f1e217]
+                  - cell "模型可通过切片器处理" [ref=f1e220]
+          - generic [ref=f1e222]:
+            - alert [ref=f1e223]:
+              - generic [ref=f1e224]:
+                - generic [ref=f1e225]: 模型满足制造条件
+                - paragraph [ref=f1e226]: 接下来选择耗材与打印参数，然后云端切片（§4.1）
+            - button "去选择耗材与参数 →" [ref=f1e227] [cursor=pointer]
+  - button "🧑‍🔧" [ref=f1e48] [cursor=pointer]

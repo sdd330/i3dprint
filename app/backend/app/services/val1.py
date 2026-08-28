@@ -38,8 +38,8 @@ def build_preset(kind: str) -> trimesh.Trimesh:
     return c.box(extents=[80, 60, 70])
 
 
-def analyze_mesh(mesh: trimesh.Trimesh, max_faces_for_wall: int = 200_000) -> dict:
-    """真实几何分析报告（trimesh）"""
+def analyze_mesh(mesh: trimesh.Trimesh, max_faces_for_wall: int = 200_000, max_faces_for_overhang: int = 400_000) -> dict:
+    """真实几何分析报告（trimesh）；超大网格对昂贵检查做子采样/跳过降级"""
     bounds = mesh.bounds
     bbox = [round(float(bounds[1][i] - bounds[0][i]), 1) for i in range(3)]  # x/y/z
     report = {
@@ -52,10 +52,18 @@ def analyze_mesh(mesh: trimesh.Trimesh, max_faces_for_wall: int = 200_000) -> di
         "face_count": int(len(mesh.faces)),
     }
     # 悬垂：法线朝下（与水平面夹角 < 45°）的面占比 → 需要支撑的比例
+    # 超大网格（如 160MB OBJ）对法线做子采样估算，避免全量计算卡死
     if len(mesh.faces) > 0:
-        face_normals = mesh.face_normals
-        downward = float(np.mean(face_normals[:, 2] < -np.sin(np.radians(45))))
-        report["overhang_pct"] = round(downward * 100, 1)
+        try:
+            if len(mesh.faces) > max_faces_for_overhang:
+                sub = np.random.default_rng(0).choice(len(mesh.faces), 100_000, replace=False)
+                face_normals = trimesh.geometry.face_normals(mesh.vertices, mesh.faces[sub])
+            else:
+                face_normals = mesh.face_normals
+            downward = float(np.mean(face_normals[:, 2] < -np.sin(np.radians(45))))
+            report["overhang_pct"] = round(downward * 100, 1)
+        except Exception:
+            report["overhang_pct"] = 0.0
     else:
         report["overhang_pct"] = 0.0
     # 壁厚近似：法线方向 raycast 采样最近命中距离的 5 分位（面数过多时跳过）
@@ -75,8 +83,32 @@ def analyze_mesh(mesh: trimesh.Trimesh, max_faces_for_wall: int = 200_000) -> di
 
 
 def analyze_file(path: str) -> dict:
-    mesh = trimesh.load(path, force="mesh")
-    return analyze_mesh(mesh)
+    """加载并分析模型文件。
+
+    - force="mesh" + skip_texture=True：OBJ 带 MTL/纹理贴图时跳过材质解析（Val1 几何检查不需要纹理，
+      同时避免依赖 Pillow 对超大贴图的拷贝）
+    - process=False：关闭 trimesh 的自动修复/合并（160MB 大网格会非常慢且吃内存）
+    - 解析失败返回降级报告（integrity fail），由规则引擎判「不通过」，绝不抛 500
+    """
+    try:
+        ext = str(path).lower().rsplit(".", 1)[-1] if "." in str(path) else ""
+        if ext == "obj":
+            # OBJ 走向量化快速解析器（大模型从 ~10s 压到 ~4s，接近 BambuStudio）
+            from .fast_loader import fast_analyze_obj
+            fast = fast_analyze_obj(path)
+            if fast is not None:
+                return fast
+        mesh = trimesh.load(path, force="mesh", skip_texture=True, process=False)
+        # 关键：STL 顶点本不共享索引，必须合并顶点后才能正确判断水密/流形/体积
+        # （否则 is_watertight 恒为 False，好模型也会误判「不通过」）
+        mesh.merge_vertices()
+        return analyze_mesh(mesh)
+    except Exception:
+        return {
+            "error": "模型解析失败", "volume_cm3": 0.0, "surface_cm2": 0.0, "bbox": [0, 0, 0],
+            "closed": False, "manifold": False, "self_intersect": False,
+            "face_count": 0, "overhang_pct": 0.0, "min_wall": None,
+        }
 
 
 def run_val1(stats: dict, cfg: dict, material_id: str = "", preset: str = "") -> dict:

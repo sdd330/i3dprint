@@ -311,3 +311,16 @@ class AuditLog(Base):
     detail: Mapped[str] = mapped_column(Text, default="")
     ip: Mapped[str] = mapped_column(String(64), default="")
     at: Mapped[str] = mapped_column(String(32), default=now_iso)
+
+
+class AppSetting(Base):
+    """软件全局设置（环境变量图形化配置的落地点，跨活动不变；启动时从 DB 加载覆盖 env）"""
+    __tablename__ = "app_settings"
+    key: Mapped[str] = mapped_column(String(64), primary_key=True)
+    value: Mapped[str] = mapped_column(Text, default="")
+    category: Mapped[str] = mapped_column(String(32), default="service")  # service/slicer/external/misc
+    label: Mapped[str] = mapped_column(String(128), default="")
+    hint: Mapped[str] = mapped_column(Text, default="")
+    value_type: Mapped[str] = mapped_column(String(16), default="str")  # str/int/float/bool/secret
+    restart_required: Mapped[bool] = mapped_column(Boolean, default=False)
+    updated_at: Mapped[str] = mapped_column(String(32), default=now_iso)

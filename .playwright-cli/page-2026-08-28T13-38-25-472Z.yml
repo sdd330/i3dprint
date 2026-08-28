@@ -1,0 +1,47 @@
+- generic [active] [ref=f2e1]:
+  - generic [ref=f2e3]:
+    - banner [ref=f2e4]:
+      - generic [ref=f2e5]:
+        - generic [ref=f2e6] [cursor=pointer]:
+          - generic [ref=f2e7]: 🧪
+          - generic [ref=f2e8]: 3D 打印小屋
+        - navigation [ref=f2e9]:
+          - link "首页" [ref=f2e10] [cursor=pointer]:
+            - /url: /
+          - link "我的订单" [ref=f2e11] [cursor=pointer]:
+            - /url: /orders
+          - link "创建需求" [ref=f2e12] [cursor=pointer]:
+            - /url: /create
+          - link "AI 建模" [ref=f2e13] [cursor=pointer]:
+            - /url: /ai
+          - link "使用手册" [ref=f2e14] [cursor=pointer]:
+            - /url: /manual
+        - generic [ref=f2e15]:
+          - generic [ref=f2e16]: 小陈 · 大一
+          - button "退出" [ref=f2e18] [cursor=pointer]
+    - generic [ref=f2e20]:
+      - heading "创建打印需求" [level=1] [ref=f2e21]
+      - paragraph [ref=f2e22]: 活动「2026 秋季第 1 场 · 3D 打印体验活动」· 开放中
+      - generic [ref=f2e51]:
+        - generic [ref=f2e52]: 需求 O8 · 新打印需求
+        - generic [ref=f2e54]:
+          - text: 没有现成模型？去
+          - link "AI 建模" [ref=f2e55] [cursor=pointer]:
+            - /url: /ai
+          - text: 生成后自动填充
+      - generic [ref=f2e56]:
+        - tablist [ref=f2e60]:
+          - tab "📤 上传模型 STL / OBJ（≤ 300MB）" [selected] [ref=f2e61]:
+            - generic [ref=f2e62]: 📤 上传模型
+            - generic [ref=f2e63]: STL / OBJ（≤ 300MB）
+          - tab "🎲 内置演示模型 快速体验" [ref=f2e64]:
+            - generic [ref=f2e65]: 🎲 内置演示模型
+            - generic [ref=f2e66]: 快速体验
+        - tabpanel "📤 上传模型 STL / OBJ（≤ 300MB）" [ref=f2e68]:
+          - generic [ref=f2e69] [cursor=pointer]:
+            - generic [ref=f2e70]: 📦
+            - generic [ref=f2e71]: 点击选择或拖拽 STL / OBJ 文件到此处
+            - generic [ref=f2e72]: 支持最大 300MB · 上传后服务端 trimesh 自动解析几何（面数/封闭/悬垂/壁厚）
+    - button "🧑‍🔧" [ref=f2e48] [cursor=pointer]
+  - alert [ref=f2e73]:
+    - paragraph [ref=f2e77]: 需求已创建，接下来选择模型

@@ -8,3 +8,4 @@ pyjwt
 trimesh
 python-multipart
 httpx
+pillow

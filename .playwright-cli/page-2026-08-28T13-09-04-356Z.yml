@@ -1,0 +1,93 @@
+- generic [ref=f1e3]:
+  - banner [ref=f1e4]:
+    - generic [ref=f1e5]:
+      - generic [ref=f1e6] [cursor=pointer]:
+        - generic [ref=f1e7]: 🧪
+        - generic [ref=f1e8]: 3D 打印小屋
+      - navigation [ref=f1e9]:
+        - link "首页" [ref=f1e10] [cursor=pointer]:
+          - /url: /
+        - link "我的订单" [ref=f1e11] [cursor=pointer]:
+          - /url: /orders
+        - link "创建需求" [ref=f1e12] [cursor=pointer]:
+          - /url: /create
+        - link "AI 建模" [ref=f1e13] [cursor=pointer]:
+          - /url: /ai
+        - link "使用手册" [ref=f1e14] [cursor=pointer]:
+          - /url: /manual
+      - generic [ref=f1e15]:
+        - generic [ref=f1e16]: 小陈 · 大一
+        - button "退出" [ref=f1e18] [cursor=pointer]
+  - generic [ref=f1e229]:
+    - generic [ref=f1e231]:
+      - text: 参数配置预览 · 打印平台 256×256×256mm
+      - generic [ref=f1e232]: 尺寸：43.8 × 55 × 43.8 mm
+    - generic [ref=f1e235]:
+      - generic [ref=f1e236]:
+        - generic [ref=f1e237]: 需求 O7 · 参数配置（§4.2）
+        - generic [ref=f1e238]: 摆放已锁定（0° 0° 0° / ×1），预览为摆放后状态
+      - generic [ref=f1e239]:
+        - generic [ref=f1e240]:
+          - generic [ref=f1e241]: 耗材材料
+          - generic [ref=f1e244] [cursor=pointer]:
+            - generic:
+              - combobox "耗材材料" [ref=f1e246]
+              - generic [ref=f1e247]: PLA 聚乳酸 · 0.1 元/g ×1
+        - group "颜色" [ref=f1e252]:
+          - generic [ref=f1e255]:
+            - generic [ref=f1e256] [cursor=pointer]
+            - generic [ref=f1e257] [cursor=pointer]
+            - generic [ref=f1e258] [cursor=pointer]
+            - generic [ref=f1e259] [cursor=pointer]
+            - generic [ref=f1e260] [cursor=pointer]
+            - generic [ref=f1e261] [cursor=pointer]
+            - generic [ref=f1e262] [cursor=pointer]
+            - generic [ref=f1e263] [cursor=pointer]
+        - generic [ref=f1e264]:
+          - generic [ref=f1e265]: 打印参数
+          - generic [ref=f1e266]:
+            - radiogroup "打印参数" [ref=f1e267]:
+              - generic [ref=f1e268] [cursor=pointer]:
+                - radio "快速档（0.28mm/15%）" [ref=f1e270]
+                - generic [ref=f1e272]: 快速档（0.28mm/15%）
+              - generic [ref=f1e273] [cursor=pointer]:
+                - radio "标准档（0.2mm/20%）" [checked] [ref=f1e275]
+                - generic [ref=f1e277]: 标准档（0.2mm/20%）
+              - generic [ref=f1e278] [cursor=pointer]:
+                - radio "精细档（0.12mm/25%）" [ref=f1e280]
+                - generic [ref=f1e282]: 精细档（0.12mm/25%）
+            - generic [ref=f1e283]: 进阶手动设置 →
+        - generic [ref=f1e288]:
+          - switch
+          - generic [ref=f1e289] [cursor=pointer]
+          - generic [ref=f1e291] [cursor=pointer]: 自备耗材（§16.3）
+      - button "提交切片（云端 OrcaSlicer）" [ref=f1e293] [cursor=pointer]
+      - button "← 返回摆放" [ref=f1e295] [cursor=pointer]
+    - dialog [ref=f1e298]:
+      - generic [active] [ref=f1e299]:
+        - banner [ref=f1e300]:
+          - text: 切片预览（§6）
+          - button "关闭此对话框" [ref=f1e301] [cursor=pointer]
+        - generic [ref=f1e306]:
+          - alert [ref=f1e307]:
+            - generic [ref=f1e308]:
+              - generic [ref=f1e309]: 切片完成，已提交 Val2 人工审核（§7）
+              - paragraph [ref=f1e310]: 切片器：OrcaSlicer 2.4.2 (CLI) · 预计 42min / 14.56g
+          - table [ref=f1e313]:
+            - rowgroup [ref=f1e314]:
+              - row [ref=f1e315]:
+                - cell "层数" [ref=f1e316]
+                - cell "60" [ref=f1e317]
+                - cell "路径长度" [ref=f1e318]
+                - cell "0 km" [ref=f1e319]
+              - row [ref=f1e320]:
+                - cell "支撑" [ref=f1e321]
+                - cell "树形（自动）" [ref=f1e322]
+                - cell "Val2 自动检查" [ref=f1e323]
+                - cell "通过" [ref=f1e324]
+              - row [ref=f1e325]:
+                - cell "数据来源" [ref=f1e326]
+                - cell "OrcaSlicer 输出" [ref=f1e327]
+          - button "进阶：G-code 预览（切片输出，§6.2）" [ref=f1e330] [cursor=pointer]
+          - button "查看订单追踪（等待 Val2）" [ref=f1e335] [cursor=pointer]
+  - button "🧑‍🔧" [ref=f1e48] [cursor=pointer]

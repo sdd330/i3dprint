@@ -11,13 +11,13 @@ from sqlalchemy.orm import Session
 
 from ..core.database import get_db
 from ..core.security import client_ip, require_permission, write_audit
-from ..models import Campaign, Issue, Order, PrintJob, Review, User
+from ..models import Campaign, Issue, ModelVersion, Order, PrintJob, Review, User
 from ..services.config_service import clone_config_for_campaign, get_activity_config
 from ..services.cost import append_cost, calc_filament_fee, settle_order_costs
 from ..services.print_service import PRINTERS, allocate, find_idle_printer, release
 from ..services.state_machine import StateError, transition, transition_campaign
 from ..services.val1 import run_val1
-from ..services.slicing import run_slice, run_val2_auto
+from ..services.slicing import prepare_slice_file, run_slice, run_val2_auto
 
 router = APIRouter(prefix="/admin")
 
@@ -47,6 +47,7 @@ def queues(db: DbDep, user: Annotated[User, Depends(require_permission("order:vi
             "slice": o.slice, "val2auto": o.val2auto, "created_at": o.created_at,
             "print_jobs": [{"id": j.id, "seq": j.seq, "status": j.status, "printer_id": j.printer_id,
                             "est_time_sec": j.est_time_sec, "note": j.note} for j in o.print_jobs],
+            "issues": [{"type": i.type, "stage": i.stage} for i in o.issues],
         }
     return {
         "val1_appeal": [brief(o) for o in db.query(Order).filter_by(status="val1_appeal").all()],
@@ -90,7 +91,11 @@ def val1_appeal_review(order_id: int, body: Val1AppealIn, db: DbDep,
 
 def _do_slice(db: Session, order: Order, config: dict):
     material = next((m for m in config.get("fee", {}).get("materials", []) if m["id"] == order.material_id), {})
-    slice_result = run_slice(order.geometry, order.params, material, config)
+    mv = db.get(ModelVersion, order.model_version_id) if order.model_version_id else None
+    from ..core.config import settings as _st
+    from pathlib import Path as _P
+    model_path = prepare_slice_file(order, mv, _P(_st.data_dir) / "slices")
+    slice_result = run_slice(order.geometry, order.params, material, config, model_path)
     order.slice = slice_result
     val2auto = run_val2_auto(slice_result, order, order.params, material, config)
     order.val2auto = val2auto
@@ -236,6 +241,32 @@ def print_fail(job_id: int, body: PrintFailIn, db: DbDep,
     db.commit()
     write_audit(db, user, "print.fail_requeue", target=f"PJ{job.id}", detail=body.note, ip=client_ip(request))
     return {"ok": True}
+
+
+class RequeueIn(BaseModel):
+    note: str = "设备已处理，安排重打（§10.2）"
+
+
+@router.post("/orders/{order_id}/requeue")
+def requeue(order_id: int, body: RequeueIn, db: DbDep,
+            user: Annotated[User, Depends(require_permission("print:manage"))], request: Request):
+    """设备问题重打：rework → 直接入队（不需重切），新 PrintJob 按半价计费（§10.2）"""
+    order = _get_order(db, order_id)
+    if order.status != "rework":
+        raise HTTPException(status_code=409, detail="该需求不在重新处理状态")
+    last_issue = order.issues[-1] if order.issues else None
+    if not last_issue or last_issue.type != "MACHINE":
+        raise HTTPException(status_code=409, detail="仅设备问题可直接入队重打；参数/模型问题需重切或改模型")
+    job = PrintJob(order_id=order.id, seq=len(order.print_jobs) + 1, status="queued",
+                   est_time_sec=order.slice["est_time_sec"] if order.slice else 0,
+                   est_weight_g=order.slice["est_weight_g"] if order.slice else 0,
+                   gcode=order.slice["gcode"] if order.slice else {},
+                   note="设备问题半价重打（§10.2）")
+    db.add(job)
+    transition(order, "queued", body.note)
+    db.commit()
+    write_audit(db, user, "print.requeue_reprint", target=f"O{order.id}", detail="MACHINE 半价重打", ip=client_ip(request))
+    return {"ok": True, "job_id": job.id}
 
 
 # ---------- Val3 实物验收 + 责任判定（§9 / §10） ----------

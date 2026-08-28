@@ -45,20 +45,21 @@ async function val2Pass(o) {
   load()
 }
 
-async function val2Reject(o) {
-  const { value } = await ElMessageBox.prompt('驳回原因 / 问题类型说明', `驳回需求 O${o.id}（§7.6）`, {
-    confirmButtonText: '参数问题（重切）', cancelButtonText: '内容不合规（终止）', distinguishCancelAndClose: true,
-  }).catch(r => ({ value: null, cancelled: r === 'cancel' }))
-  if (value !== null) {
-    await api.post(`/admin/val2/${o.id}`, { decision: 'reject', issue_type: 'PARAMETER', note: value })
-    ElMessage.success('已驳回：参数问题，重新切片')
-  }
+// Val2 驳回：责任类型 dialog（§7.6 参数/模型/内容不合规分别处理）
+const val2Dialog = ref({ visible: false, order: null, issueType: 'PARAMETER', note: '' })
+const VAL2_TYPES = [
+  ['PARAMETER', '参数/切片问题', '调整参数 → 重新切片 → Val2', 'tag-warn'],
+  ['MODEL', '模型问题', '修改模型新版本 → 重走 Val1', 'tag-warn'],
+  ['CONTENT', '内容不合规', '需求终止，不可绕过审核', 'tag-fail'],
+]
+function val2Reject(o) {
+  val2Dialog.value = { visible: true, order: o, issueType: 'PARAMETER', note: '' }
 }
-
-async function val2Content(o) {
-  await ElMessageBox.confirm(`确认内容不合规并终止需求 O${o.id}？终止后不可恢复。`, '内容合规审核（§7.4）', { type: 'warning' })
-  await api.post(`/admin/val2/${o.id}`, { decision: 'reject', issue_type: 'CONTENT', note: '内容不合规，需求终止' })
-  ElMessage.success('已终止')
+async function val2SubmitReject() {
+  const d = val2Dialog.value
+  await api.post(`/admin/val2/${d.order.id}`, { decision: 'reject', issue_type: d.issueType, note: d.note || '负责人驳回' })
+  ElMessage.success(d.issueType === 'CONTENT' ? '内容不合规，需求已终止' : '已驳回，按问题类型进入处理流程')
+  d.visible = false
   load()
 }
 
@@ -69,15 +70,31 @@ async function val3Pass(o) {
   load()
 }
 
-async function val3Fail(o) {
-  const { value } = await ElMessageBox.prompt('选择问题责任类型并说明（§10）', `Val3 不通过 · 需求 O${o.id}`, {
-    confirmButtonText: '设备问题', cancelButtonText: '参数问题', distinguishCancelAndClose: true,
-    inputType: 'textarea',
-  }).catch(() => ({ value: null }))
-  if (value === null) return
-  const issue_type = value === 'cancel' ? 'PARAMETER' : 'MACHINE'
-  await api.post(`/admin/val3/${o.id}`, { decision: 'fail', issue_type, note: '实物验收不通过' })
-  ElMessage.success(issue_type === 'MACHINE' ? '设备问题：半价重打（§10.2）' : '参数问题：调参重切重打（§10.1）')
+// Val3 不通过：责任判定 dialog（§9.3 / §10）
+const val3Dialog = ref({ visible: false, order: null, issueType: 'PARAMETER', note: '' })
+const VAL3_TYPES = [
+  ['PARAMETER', '参数问题', '调参 → 重切 → Val2 → 重打（费用累计，§10.1）', 'tag-warn'],
+  ['MACHINE', '设备问题', '设备处理 → 半价重打（§10.2）', 'tag-warn'],
+  ['MODEL', '模型问题', '修改模型新版本 → 重走 Val1（§10.3）', 'tag-warn'],
+  ['MACHINE_LIMIT', '设备能力上限', '不再重打，需求终止（§10.4）', 'tag-fail'],
+]
+function val3Fail(o) {
+  val3Dialog.value = { visible: true, order: o, issueType: 'PARAMETER', note: '' }
+}
+async function val3SubmitFail() {
+  const d = val3Dialog.value
+  await api.post(`/admin/val3/${d.order.id}`, { decision: 'fail', issue_type: d.issueType, note: d.note || '实物验收不通过' })
+  const label = VAL3_TYPES.find(t => t[0] === d.issueType)?.[1]
+  ElMessage.success(`已判定：${label}`)
+  d.visible = false
+  load()
+}
+
+// 设备问题：直接入队重打（§10.2）
+async function requeueReprint(o) {
+  await ElMessageBox.confirm(`确认设备已处理，安排需求 O${o.id} 半价重打？`, '设备问题重打（§10.2）')
+  await api.post(`/admin/orders/${o.id}/requeue`, { note: '设备已处理，半价重打入队' })
+  ElMessage.success('已加入打印队列（半价计费）')
   load()
 }
 
@@ -210,8 +227,18 @@ onMounted(load)
         </div>
         <div v-for="o in queues?.rework || []" :key="o.id" class="queue-item">
           <b>O{{ o.id }} · {{ o.name }}</b>
-          <div class="muted" style="font-size: 12.5px">{{ o.issues?.at(-1)?.type || '—' }}（§10 责任判定）</div>
-          <el-button size="small" @click="router.push(`/orders/${o.id}`)">处理（重切/重打）</el-button>
+          <div class="muted" style="font-size: 12.5px">
+            <el-tag size="small" :type="o.issues?.at(-1)?.type === 'MACHINE' ? 'warning' : 'info'">
+              {{ { PARAMETER: '参数问题', MACHINE: '设备问题', MODEL: '模型问题', MACHINE_LIMIT: '设备能力上限' }[o.issues?.at(-1)?.type] || '—' }}
+            </el-tag>
+            <span v-if="o.issues?.at(-1)?.type === 'MACHINE'" style="margin-left: 6px">半价重打（§10.2）</span>
+          </div>
+          <div style="margin-top: 6px; display: flex; gap: 6px">
+            <el-button v-if="o.issues?.at(-1)?.type === 'MACHINE'" size="small" type="warning" @click="requeueReprint(o)">
+              设备已处理，入队重打
+            </el-button>
+            <el-button v-else size="small" @click="router.push(`/orders/${o.id}`)">处理（重切/改模型）</el-button>
+          </div>
         </div>
       </div>
 
@@ -229,6 +256,48 @@ onMounted(load)
         <el-empty v-if="!queues?.val3_pending?.length" description="无待验收实物" :image-size="50" />
       </div>
     </div>
+
+    <!-- Val2 驳回 dialog -->
+    <el-dialog v-model="val2Dialog.visible" :title="`Val2 驳回 · 需求 O${val2Dialog.order?.id}`" width="480px">
+      <el-form label-position="top">
+        <el-form-item label="问题类型（§7.6 按类型分别处理）">
+          <el-radio-group v-model="val2Dialog.issueType" style="display: flex; flex-direction: column; gap: 6px">
+            <el-radio v-for="[v, name, desc] in VAL2_TYPES" :key="v" :value="v">
+              {{ name }}<span class="muted" style="font-size: 12px"> — {{ desc }}</span>
+            </el-radio>
+          </el-radio-group>
+        </el-form-item>
+        <el-form-item label="驳回说明">
+          <el-input v-model="val2Dialog.note" type="textarea" :rows="2" placeholder="补充说明，将展示给学生并记录审计" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="val2Dialog.visible = false">取消</el-button>
+        <el-button type="danger" @click="val2SubmitReject">确认驳回</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- Val3 责任判定 dialog -->
+    <el-dialog v-model="val3Dialog.visible" :title="`Val3 不通过 · 需求 O${val3Dialog.order?.id}`" width="500px">
+      <el-alert type="error" :closable="false" show-icon style="margin-bottom: 12px"
+                title="实物验收不通过，请判定问题责任（§9.3）" />
+      <el-form label-position="top">
+        <el-form-item label="问题类型（§10 处理路径不同）">
+          <el-radio-group v-model="val3Dialog.issueType" style="display: flex; flex-direction: column; gap: 6px">
+            <el-radio v-for="[v, name, desc] in VAL3_TYPES" :key="v" :value="v">
+              {{ name }}<span class="muted" style="font-size: 12px"> — {{ desc }}</span>
+            </el-radio>
+          </el-radio-group>
+        </el-form-item>
+        <el-form-item label="问题描述">
+          <el-input v-model="val3Dialog.note" type="textarea" :rows="2" placeholder="如：表面拉丝严重 / 喷嘴堵塞导致层间分离…" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="val3Dialog.visible = false">取消</el-button>
+        <el-button type="danger" @click="val3SubmitFail">确认判定</el-button>
+      </template>
+    </el-dialog>
 
     <!-- 账单弹窗 -->
     <el-dialog v-model="billVisible" title="活动账单（§12.4）" width="640px">

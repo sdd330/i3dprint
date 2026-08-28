@@ -1,0 +1,69 @@
+- generic [active] [ref=f2e1]:
+  - generic [ref=f2e3]:
+    - banner [ref=f2e4]:
+      - generic [ref=f2e5]:
+        - generic [ref=f2e6] [cursor=pointer]:
+          - generic [ref=f2e7]: 🧪
+          - generic [ref=f2e8]: 3D 打印小屋
+        - navigation [ref=f2e9]:
+          - link "首页" [ref=f2e10] [cursor=pointer]:
+            - /url: /
+          - link "我的订单" [ref=f2e11] [cursor=pointer]:
+            - /url: /orders
+          - link "创建需求" [ref=f2e12] [cursor=pointer]:
+            - /url: /create
+          - link "AI 建模" [ref=f2e13] [cursor=pointer]:
+            - /url: /ai
+          - link "使用手册" [ref=f2e14] [cursor=pointer]:
+            - /url: /manual
+        - generic [ref=f2e15]:
+          - generic [ref=f2e16]: 小陈 · 大一
+          - button "退出" [ref=f2e18] [cursor=pointer]
+    - generic [ref=f2e44]:
+      - generic [ref=f2e46]:
+        - text: 参数配置预览 · 打印平台 256×256×256mm
+        - generic [ref=f2e47]: 尺寸：43.8 × 55 × 43.8 mm
+      - generic [ref=f2e50]:
+        - generic [ref=f2e51]:
+          - generic [ref=f2e52]: 需求 O8 · 参数配置（§4.2）
+          - generic [ref=f2e53]: 摆放已锁定（0° 0° 0° / ×1），预览为摆放后状态
+        - generic [ref=f2e54]:
+          - generic [ref=f2e55]:
+            - generic [ref=f2e56]: 耗材材料
+            - generic [ref=f2e59] [cursor=pointer]:
+              - generic:
+                - combobox "耗材材料" [ref=f2e61]
+                - generic [ref=f2e62]: PLA 聚乳酸 · 0.1 元/g ×1
+          - group "颜色" [ref=f2e67]:
+            - generic [ref=f2e70]:
+              - generic [ref=f2e71] [cursor=pointer]
+              - generic [ref=f2e72] [cursor=pointer]
+              - generic [ref=f2e73] [cursor=pointer]
+              - generic [ref=f2e74] [cursor=pointer]
+              - generic [ref=f2e75] [cursor=pointer]
+              - generic [ref=f2e76] [cursor=pointer]
+              - generic [ref=f2e77] [cursor=pointer]
+              - generic [ref=f2e78] [cursor=pointer]
+          - generic [ref=f2e79]:
+            - generic [ref=f2e80]: 打印参数
+            - generic [ref=f2e81]:
+              - radiogroup "打印参数" [ref=f2e82]:
+                - generic [ref=f2e83] [cursor=pointer]:
+                  - radio "快速档（0.28mm/15%）" [ref=f2e85]
+                  - generic [ref=f2e87]: 快速档（0.28mm/15%）
+                - generic [ref=f2e88] [cursor=pointer]:
+                  - radio "标准档（0.2mm/20%）" [checked] [ref=f2e90]
+                  - generic [ref=f2e92]: 标准档（0.2mm/20%）
+                - generic [ref=f2e93] [cursor=pointer]:
+                  - radio "精细档（0.12mm/25%）" [ref=f2e95]
+                  - generic [ref=f2e97]: 精细档（0.12mm/25%）
+              - generic [ref=f2e98]: 进阶手动设置 →
+          - generic [ref=f2e103]:
+            - switch
+            - generic [ref=f2e104] [cursor=pointer]
+            - generic [ref=f2e106] [cursor=pointer]: 自备耗材（§16.3）
+        - button "提交 Val1 审核" [ref=f2e108] [cursor=pointer]
+        - button "← 返回摆放" [ref=f2e110] [cursor=pointer]
+    - button "🧑‍🔧" [ref=f2e41] [cursor=pointer]
+  - alert [ref=f2e112]:
+    - paragraph [ref=f2e116]: 摆放已保存，去配置耗材与参数

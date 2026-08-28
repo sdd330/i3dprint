@@ -7,6 +7,7 @@ import httpx
 from sqlalchemy.orm import Session
 
 from ..core.config import settings
+from ..core.dynamic_settings import get_setting
 from ..models import QaKnowledge, User
 
 # 监督提示（决策清单 §13.4：System Prompt 注入自监督指令）
@@ -45,12 +46,12 @@ def kb_search(db: Session, question: str, step: str) -> QaKnowledge | None:
 def _deepseek(messages: list[dict], config: dict) -> dict:
     """调用 DeepSeek API（OpenAI 兼容）；未配置 key 时返回模拟答案，token 为估算值"""
     qa_cfg = config.get("qa", {})
-    if settings.deepseek_api_key:
+    if get_setting("deepseek_api_key", settings.deepseek_api_key):
         with httpx.Client(timeout=60) as client:
             resp = client.post(
-                f"{settings.deepseek_base_url}/chat/completions",
-                headers={"Authorization": f"Bearer {settings.deepseek_api_key}"},
-                json={"model": settings.deepseek_model, "messages": messages, "temperature": 0.7},
+                f"{get_setting('deepseek_base_url', settings.deepseek_base_url)}/chat/completions",
+                headers={"Authorization": f"Bearer {get_setting('deepseek_api_key', settings.deepseek_api_key)}"},
+                json={"model": get_setting("deepseek_model", settings.deepseek_model), "messages": messages, "temperature": 0.7},
             )
             data = resp.json()
             usage = data.get("usage", {})
