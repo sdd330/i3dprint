@@ -114,7 +114,7 @@ async function savePrompt() {
         </el-form-item>
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px">
           <el-form-item label="步骤上下文（情境化）">
-            <el-input v-model="editing.step_context" placeholder="如：参数设置 / Val2 审核" />
+            <el-input v-model="editing.step_context" placeholder="如：参数设置 / 打印需求" />
           </el-form-item>
           <el-form-item label="Spine 动画关键字">
             <el-input v-model="editing.animation_key" placeholder="如：happy / think / warn" />

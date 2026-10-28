@@ -1,6 +1,13 @@
 # E3DP backend — 两级状态机（设计文档 §12）
 # 第一级：活动状态（待开放/开放中/收尾中/已归档）
-# 第二级：订单状态（16 态，在所属活动内流转；摆放/尺寸调整为 Modeling 子阶段）
+# 第二级：订单状态（在所属活动内流转；摆放/尺寸调整为 Modeling 子阶段）
+#
+# 2026-10 调整（在线切片 + Val2 切片核验暂缓）：
+#   val1_pending ─ 无潜在问题 ─→ print_config（打印需求配置）
+#                └─ 标记潜在问题 ─→ val1_review（人工审核，**不退回用户**）
+#   print_config ─ 提交打印需求 ─→ queued（打印清单，负责人据此执行打印）
+#   旧状态 slicing / val2_pending / val2_failed / val1_appeal 保留定义以兼容历史数据，
+#   新链路不再产生（启动时 seed() 会把历史数据迁移到新状态）。
 
 from ..models.entities import CAMPAIGN_STATUS, ORDER_STATUS
 
@@ -13,20 +20,26 @@ class StateError(Exception):
 TRANSITIONS = {
     "draft": ["modeling", "terminated"],
     "modeling": ["val1_pending", "draft", "terminated"],
-    "val1_pending": ["slicing", "val1_failed", "val1_appeal", "terminated"],
-    "val1_failed": ["modeling", "val1_pending", "terminated"],  # 修改模型→新版本→重新提交
-    "val1_appeal": ["slicing", "val1_failed", "terminated"],  # 人工审核：同意/要求修改/判定不通过
-    "slicing": ["val2_pending", "val2_failed", "modeling", "terminated"],  # 切片失败→改参/改模型
-    "val2_pending": ["queued", "val2_failed", "terminated"],
-    "val2_failed": ["slicing", "modeling", "terminated"],  # 参数/切片→重切；模型→新版本Val1；内容不合规→终止
-    "queued": ["printing", "terminated"],
+    # Val1 自动审核：无潜在问题直接进打印需求；有潜在问题只做「标记 + 转人工」，无自动退回
+    "val1_pending": ["print_config", "val1_review", "terminated"],
+    # 人工复核：放行 / 要求修改模型（人工退回）/ 终止
+    "val1_review": ["print_config", "val1_failed", "terminated"],
+    "val1_failed": ["modeling", "terminated"],  # 用户改模型 → 重走摆放与 Val1
+    # 打印需求配置（材料 / 强度 / 进阶参数）
+    "print_config": ["queued", "modeling", "terminated"],
+    "queued": ["printing", "terminated"],  # 打印清单，等待执行打印
     "printing": ["val3_pending", "queued", "terminated"],  # 打印异常→重新排队（§16.4）
     "val3_pending": ["settlement", "val3_failed", "rework", "terminated"],  # §10.4 设备能力上限 → 终止
     "val3_failed": ["rework", "terminated"],
-    "rework": ["slicing", "modeling", "queued", "terminated"],  # 参数→重切；模型→新版本Val1；设备→重打
+    "rework": ["print_config", "modeling", "queued", "terminated"],  # 参数→改打印需求；模型→改模型；设备→重打
     "settlement": ["completed", "terminated"],
     "completed": [],
     "terminated": [],
+    # —— 已暂缓（在线切片 + Val2），仅为历史数据兼容保留 ——
+    "val1_appeal": ["print_config", "val1_failed", "terminated"],
+    "slicing": ["print_config", "modeling", "terminated"],
+    "val2_pending": ["queued", "print_config", "terminated"],
+    "val2_failed": ["print_config", "modeling", "terminated"],
 }
 
 CAMPAIGN_TRANSITIONS = {

@@ -1,4 +1,7 @@
 # E3DP backend — 负责人操作路由（决策清单 §9：全部走角色权限校验）
+#
+# 2026-10 调整：Val2 切片审核 / 在线切片已暂缓 → 人工复核对象改为「Val1 标记的潜在问题」，
+# 打印执行依据用户提交的「打印清单」（材料/强度/进阶参数/估算），不再有切片产物。
 
 from __future__ import annotations
 
@@ -11,13 +14,11 @@ from sqlalchemy.orm import Session
 
 from ..core.database import get_db
 from ..core.security import client_ip, require_permission, write_audit
-from ..models import Campaign, Issue, ModelVersion, Order, PrintJob, Review, User
+from ..models import Campaign, Issue, Order, PrintJob, Review, User
 from ..services.config_service import clone_config_for_campaign, get_activity_config
 from ..services.cost import append_cost, calc_filament_fee, settle_order_costs
 from ..services.print_service import PRINTERS, allocate, find_idle_printer, release
 from ..services.state_machine import StateError, transition, transition_campaign
-from ..services.val1 import run_val1
-from ..services.slicing import prepare_slice_file, run_slice, run_val2_auto
 
 router = APIRouter(prefix="/admin")
 
@@ -41,113 +42,76 @@ def _get_order(db: Session, order_id: int) -> Order:
 @router.get("/queues")
 def queues(db: DbDep, user: Annotated[User, Depends(require_permission("order:view_all"))]):
     def brief(o: Order) -> dict:
+        jobs = sorted(o.print_jobs, key=lambda j: j.id)
         return {
             "id": o.id, "name": o.name, "user": o.user.name if o.user else "", "status": o.status,
-            "self_filament": o.self_filament, "appeal": o.appeal, "val1": o.val1,
-            "slice": o.slice, "val2auto": o.val2auto, "created_at": o.created_at,
+            "self_filament": o.self_filament, "filament_approved": o.filament_approved,
+            "appeal": o.appeal, "val1": o.val1, "slice": o.slice, "val2auto": o.val2auto,
+            "created_at": o.created_at,
+            # 打印清单所需字段（材料/颜色/工艺参数/尺寸/估算/备注）
+            "material_id": o.material_id, "color": o.color, "params": o.params,
+            "geometry": o.geometry, "model_id": o.model_id, "model_version_id": o.model_version_id,
+            "manifest": (jobs[-1].gcode or {}).get("manifest") if jobs else None,
             "print_jobs": [{"id": j.id, "seq": j.seq, "status": j.status, "printer_id": j.printer_id,
-                            "est_time_sec": j.est_time_sec, "note": j.note} for j in o.print_jobs],
-            "issues": [{"type": i.type, "stage": i.stage} for i in o.issues],
+                            "est_time_sec": j.est_time_sec, "est_weight_g": j.est_weight_g,
+                            "actual_weight_g": j.actual_weight_g, "note": j.note} for j in jobs],
+            "issues": [{"type": i.type, "stage": i.stage, "description": i.description} for i in o.issues],
         }
     return {
-        "val1_appeal": [brief(o) for o in db.query(Order).filter_by(status="val1_appeal").all()],
-        "val2_pending": [brief(o) for o in db.query(Order).filter_by(status="val2_pending").all()],
-        "val3_pending": [brief(o) for o in db.query(Order).filter_by(status="val3_pending").all()],
+        # Val1 标记了潜在问题，等负责人复核（无自动退回机制）
+        "val1_review": [brief(o) for o in db.query(Order).filter_by(status="val1_review").all()],
+        "print_config": [brief(o) for o in db.query(Order).filter_by(status="print_config").all()],
+        # 打印清单：已提交打印需求、等待执行打印
         "print_queue": [brief(o) for o in db.query(Order).filter_by(status="queued").all()],
         "printing": [brief(o) for o in db.query(Order).filter_by(status="printing").all()],
+        "val3_pending": [brief(o) for o in db.query(Order).filter_by(status="val3_pending").all()],
         "rework": [brief(o) for o in db.query(Order).filter_by(status="rework").all()],
         "printers": PRINTERS,
     }
 
 
-# ---------- Val1 申诉人工审核（§5.3） ----------
+@router.get("/print-manifest")
+def print_manifest(db: DbDep, user: Annotated[User, Depends(require_permission("order:view_all"))]):
+    """打印清单（执行打印用）：待打印 + 打印中，含完整参数与估算，可前端整页打印。"""
+    rows = []
+    for o in db.query(Order).filter(Order.status.in_(["queued", "printing"])).order_by(Order.id).all():
+        jobs = sorted(o.print_jobs, key=lambda j: j.id)
+        queued = [j for j in jobs if j.status in ("queued", "blocked")]
+        job = (queued or jobs or [None])[-1]
+        manifest = (job.gcode or {}).get("manifest") if job else None
+        rows.append({"order_id": o.id, "status": o.status, "job": {
+            "id": job.id if job else None, "seq": job.seq if job else None,
+            "status": job.status if job else None, "printer_id": job.printer_id if job else None,
+            "est_time_sec": job.est_time_sec if job else 0, "est_weight_g": job.est_weight_g if job else 0,
+        }, "manifest": manifest, "self_filament": o.self_filament, "filament_approved": o.filament_approved})
+    return {"manifests": rows, "generated_at": _now()}
 
-class Val1AppealIn(BaseModel):
+
+# ---------- Val1 标记项人工复核（替代原「申诉审核」） ----------
+
+class Val1ReviewIn(BaseModel):
     decision: str  # approve | modify | reject
     note: str = ""
 
 
-@router.post("/val1-appeal/{order_id}")
-def val1_appeal_review(order_id: int, body: Val1AppealIn, db: DbDep,
-                       user: Annotated[User, Depends(require_permission("val1:review"))], request: Request):
+@router.post("/val1-review/{order_id}")
+def val1_review(order_id: int, body: Val1ReviewIn, db: DbDep,
+                user: Annotated[User, Depends(require_permission("val1:review"))], request: Request):
     order = _get_order(db, order_id)
-    if order.status != "val1_appeal":
-        raise HTTPException(status_code=409, detail="该需求不在申诉审核队列")
-    db.add(Review(order_id=order.id, stage="val1", result=f"人工:{body.decision}", reviewer=user.name, note=body.note))
+    if order.status != "val1_review":
+        raise HTTPException(status_code=409, detail="该需求不在 Val1 人工复核队列")
+    flagged = (order.val1 or {}).get("flagged_items", [])
+    default_note = "、".join(i["name"] for i in flagged) or "无"
+    note = body.note or f"复核标记项：{default_note}"
+    db.add(Review(order_id=order.id, stage="val1", result=f"人工:{body.decision}", reviewer=user.name, note=note))
     if body.decision == "approve":
-        config = get_activity_config(db, order.campaign)
-        transition(order, "slicing", "负责人同意申诉，进入切片")
-        db.commit()
-        _do_slice(db, order, config)
+        transition(order, "print_config", f"负责人复核放行（{note}），进入打印需求配置")
     elif body.decision == "modify":
-        transition(order, "val1_failed", "负责人要求修改模型")
-        db.commit()
+        transition(order, "val1_failed", f"负责人要求修改模型：{note}")
     else:
-        transition(order, "val1_failed", "申诉被驳回，判定不通过")
-        db.commit()
-    write_audit(db, user, "val1.appeal_review", target=f"O{order.id}", detail=body.decision, ip=client_ip(request))
-    return {"ok": True}
-
-
-def _do_slice(db: Session, order: Order, config: dict):
-    material = next((m for m in config.get("fee", {}).get("materials", []) if m["id"] == order.material_id), {})
-    mv = db.get(ModelVersion, order.model_version_id) if order.model_version_id else None
-    from ..core.config import settings as _st
-    from pathlib import Path as _P
-    model_path = prepare_slice_file(order, mv, _P(_st.data_dir) / "slices")
-    slice_result = run_slice(order.geometry, order.params, material, config, model_path)
-    order.slice = slice_result
-    val2auto = run_val2_auto(slice_result, order, order.params, material, config)
-    order.val2auto = val2auto
-    transition(order, "val2_pending", "切片完成，提交 Val2 人工审核")
+        transition(order, "terminated", f"复核判定不可打印，需求终止：{note}")
     db.commit()
-
-
-# ---------- Val2 人工审核 + 内容合规（§7.3/§7.4/§7.6） ----------
-
-class Val2In(BaseModel):
-    decision: str  # pass | reject
-    issue_type: str = "PARAMETER"  # PARAMETER / MODEL / SLICING / CONTENT
-    note: str = ""
-
-
-@router.post("/val2/{order_id}")
-def val2_review(order_id: int, body: Val2In, db: DbDep,
-                user: Annotated[User, Depends(require_permission("val2:review"))], request: Request):
-    order = _get_order(db, order_id)
-    if order.status != "val2_pending":
-        raise HTTPException(status_code=409, detail="该需求不在 Val2 审核队列")
-    if body.decision == "pass":
-        db.add(Review(order_id=order.id, stage="val2", result="通过", reviewer=user.name,
-                      note=body.note or "人工切片审核 + 内容合规审核通过"))
-        transition(order, "queued", "Val2 通过：生成打印任务，加入打印队列")
-        db.commit()
-        job = PrintJob(order_id=order.id, seq=len(order.print_jobs) + 1, status="queued",
-                       est_time_sec=order.slice["est_time_sec"] if order.slice else 0,
-                       est_weight_g=order.slice["est_weight_g"] if order.slice else 0,
-                       gcode=order.slice["gcode"] if order.slice else {},
-                       note="等待空闲打印机")
-        db.add(job)
-        db.commit()
-        db.refresh(job)
-        if order.self_filament and not order.filament_approved:
-            # 自备耗材需先检验合格才可打印（§16.3）
-            job.status = "blocked"
-            job.note = "自备耗材待检验（§16.3），检验合格后自动入队"
-            db.commit()
-        write_audit(db, user, "val2.review", target=f"O{order.id}", detail="pass", ip=client_ip(request))
-        return {"ok": True, "job": job.id}
-    # 驳回
-    db.add(Issue(order_id=order.id, stage="val2", type=body.issue_type, description=body.note))
-    db.add(Review(order_id=order.id, stage="val2", result=f"不通过({body.issue_type})", reviewer=user.name, note=body.note))
-    if body.issue_type == "CONTENT":
-        transition(order, "terminated", f"内容不合规，需求终止：{body.note}")
-    elif body.issue_type == "MODEL":
-        transition(order, "val2_failed", "Val2 驳回：模型问题，需修改模型生成新版本并重走 Val1")
-    else:
-        transition(order, "val2_failed", f"Val2 驳回（{body.issue_type}）：{body.note}，调整后重新切片")
-    db.commit()
-    write_audit(db, user, "val2.review", target=f"O{order.id}", detail=f"reject:{body.issue_type}", ip=client_ip(request))
+    write_audit(db, user, "val1.review", target=f"O{order.id}", detail=body.decision, ip=client_ip(request))
     return {"ok": True}
 
 
@@ -256,12 +220,14 @@ def requeue(order_id: int, body: RequeueIn, db: DbDep,
         raise HTTPException(status_code=409, detail="该需求不在重新处理状态")
     last_issue = order.issues[-1] if order.issues else None
     if not last_issue or last_issue.type != "MACHINE":
-        raise HTTPException(status_code=409, detail="仅设备问题可直接入队重打；参数/模型问题需重切或改模型")
+        raise HTTPException(status_code=409, detail="仅设备问题可直接入队重打；参数/模型问题需改打印需求或改模型")
+    # 沿用上一份清单（同一套材料/参数/估算），只重打一次
+    prev = sorted(order.print_jobs, key=lambda j: j.id)[-1] if order.print_jobs else None
     job = PrintJob(order_id=order.id, seq=len(order.print_jobs) + 1, status="queued",
-                   est_time_sec=order.slice["est_time_sec"] if order.slice else 0,
-                   est_weight_g=order.slice["est_weight_g"] if order.slice else 0,
-                   gcode=order.slice["gcode"] if order.slice else {},
-                   note="设备问题半价重打（§10.2）")
+                   est_time_sec=prev.est_time_sec if prev else 0,
+                   est_weight_g=prev.est_weight_g if prev else 0,
+                   gcode=prev.gcode if prev else {},
+                   note="设备问题半价重打（§10.2）：沿用原打印清单")
     db.add(job)
     transition(order, "queued", body.note)
     db.commit()
@@ -304,7 +270,7 @@ def val3_review(order_id: int, body: Val3In, db: DbDep,
         order.reprint_rate = {**dict(order.reprint_rate or {}), str(seq): 0.5}
         transition(order, "rework", "设备问题：设备处理后半价重打（§10.2）")
     else:
-        transition(order, "rework", "参数问题：调整参数后重新切片、打印（§10.1）")
+        transition(order, "rework", "参数问题：用户调整打印需求（材料/强度/进阶参数）后重新进清单（§10.1）")
     db.commit()
     write_audit(db, user, "val3.review", target=f"O{order.id}", detail=f"fail:{body.issue_type}", ip=client_ip(request))
     return {"ok": True}

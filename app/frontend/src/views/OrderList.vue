@@ -4,8 +4,11 @@ import { useRouter } from 'vue-router'
 import { api } from '@/api'
 import StatusTag from '@/components/StatusTag.vue'
 import ChainView from '@/components/ChainView.vue'
+import { useAppStore } from '@/stores'
 
+const app = useAppStore()
 const router = useRouter()
+const billingVisible = computed(() => app.billingVisible)
 const orders = ref([])
 const loading = ref(true)
 const filter = ref('')
@@ -20,6 +23,7 @@ const list = computed(() => {
 })
 
 onMounted(async () => {
+  if (!app.meta) app.loadMeta().catch(() => {})
   try {
     orders.value = (await api.get('/orders')).orders
   } finally {
@@ -31,7 +35,7 @@ onMounted(async () => {
 <template>
   <div class="page">
     <h1 class="page-title">我的订单</h1>
-    <p class="page-sub">每个打印需求都在所属活动中独立流转（两级状态机：活动 4 态 × 订单 16 态）</p>
+    <p class="page-sub">每个打印需求都在所属活动中独立流转（两级状态机：活动 4 态 × 订单多态）</p>
 
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px">
       <el-radio-group v-model="filter" size="small">
@@ -53,7 +57,7 @@ onMounted(async () => {
       <el-table-column label="主链进度" min-width="420">
         <template #default="{ row }"><ChainView :status="row.status" /></template>
       </el-table-column>
-      <el-table-column label="费用" width="100">
+      <el-table-column v-if="billingVisible" label="费用" width="100">
         <template #default="{ row }"><span class="amount">¥{{ row.cost?.total?.toFixed(2) }}</span></template>
       </el-table-column>
       <el-table-column label="" width="90">

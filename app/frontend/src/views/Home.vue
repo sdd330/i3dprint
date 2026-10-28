@@ -12,12 +12,15 @@ const myOrders = ref([])
 
 const campaign = computed(() => app.meta?.campaign)
 const compliance = computed(() => app.meta?.compliance || {})
+// 收费信息暂时隐去（用户要求）——后端 flow.billing_visible 控制，恢复时置 true 即可
+const billingVisible = computed(() => app.billingVisible)
 
 const STATUS_META = {
   待开放: ['即将开放', 'tag-ink'], 开放中: ['开放中 · 可接单', 'tag-pass'],
   收尾中: ['收尾中 · 停止接单', 'tag-warn'], 已归档: ['已归档', 'tag-ink'],
 }
 const [campLabel, campCls] = STATUS_META[campaign?.value?.status] || ['', 'tag-ink']
+const chain = ['创建', '摆放', 'Val1', '打印需求', '打印', 'Val3', '核算']
 
 onMounted(async () => {
   await app.loadMeta()
@@ -56,13 +59,16 @@ onMounted(async () => {
         <!-- 主链说明 -->
         <el-divider content-position="left"><span style="font-weight: 600">打印主链</span></el-divider>
         <div style="display: flex; gap: 0; flex-wrap: wrap; font-size: 12.5px" class="muted">
-          <template v-for="(s, i) in ['创建','摆放','Val1','耗材/参数','切片','Val2','打印','Val3','核算']" :key="s">
+          <template v-for="(s, i) in chain" :key="s">
             <span style="white-space: nowrap">{{ s }}</span>
-            <span v-if="i < 8" style="margin: 0 6px; color: var(--line)">→</span>
+            <span v-if="i < chain.length - 1" style="margin: 0 6px; color: var(--line)">→</span>
           </template>
         </div>
         <div style="margin-top: 10px; font-size: 12.5px" class="muted">
-          Val1 管能不能制造 · Val2 管这个任务能不能放行 · Val3 管实物合不合格
+          Val1 自动审核（有潜在问题就标记转人工复核，不退回） · 通过后填打印需求生成清单 · Val3 管实物合不合格
+        </div>
+        <div style="margin-top: 6px; font-size: 12.5px" class="muted">
+          当前版本暂不提供在线切片与 Val2 切片核验：负责人按打印清单在切片软件中执行。
         </div>
       </div>
 
@@ -82,7 +88,7 @@ onMounted(async () => {
             <b style="color: var(--ink)">{{ g.grade }}</b>：{{ g.members.join(' / ') }}
           </div>
         </div>
-        <div class="card" style="padding: 16px">
+        <div class="card" style="padding: 16px" v-if="billingVisible">
           <div style="font-weight: 700; margin-bottom: 8px">🧾 费用构成（§11）</div>
           <div style="font-size: 13px" class="muted">
             耗材费 = 成本价 × 重量 × 系数（+ 换料补偿）<br />
@@ -105,7 +111,7 @@ onMounted(async () => {
           <el-table-column label="状态" width="150">
             <template #default="{ row }"><StatusTag :status="row.status" /></template>
           </el-table-column>
-          <el-table-column label="费用" width="110">
+          <el-table-column v-if="billingVisible" label="费用" width="110">
             <template #default="{ row }"><span class="amount">¥{{ row.cost?.total?.toFixed(2) }}</span></template>
           </el-table-column>
           <el-table-column label="" width="90">

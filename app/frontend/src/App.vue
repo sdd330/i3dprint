@@ -1,10 +1,15 @@
 <script setup>
+import { onMounted } from 'vue'
 import { useRoute } from 'vue-router'
-import { useAuthStore } from '@/stores'
+import { useAuthStore, useAppStore } from '@/stores'
 import QaPanel from '@/components/QaPanel.vue'
 
 const auth = useAuthStore()
+const app = useAppStore()
 const route = useRoute()
+
+// 全局元数据（材料 / 强度档 / 能力开关 flow）：首页与订单页都要用，统一在这里预载
+onMounted(() => { if (!app.meta) app.loadMeta().catch(() => {}) })
 </script>
 
 <template>

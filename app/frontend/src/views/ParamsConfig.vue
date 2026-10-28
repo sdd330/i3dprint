@@ -180,7 +180,7 @@ onBeforeUnmount(() => {
         参数配置预览 · 打印平台 <b>256×256×256mm</b>
         <div class="mono muted" style="margin-top: 2px" v-if="previewBBox">尺寸：{{ previewBBox.join(' × ') }} mm</div>
       </div>
-      <div v-loading="loading" style="position: absolute; inset: 0; z-index: 4" />
+      <div v-loading="loading" :style="{ position: 'absolute', inset: 0, zIndex: 4, pointerEvents: loading ? 'auto' : 'none' }" />
     </div>
 
     <!-- 右侧：耗材 / 参数 -->

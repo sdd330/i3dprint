@@ -1,4 +1,9 @@
 # E3DP backend — 打印需求（订单）主链路由（设计文档 §4-§11 / §12.2）
+#
+# 2026-10 调整：**在线切片与 Val2 切片核验暂缓**
+#   用户 → 模型 → Val1（自动）─ 无问题 ─→ 打印需求配置（材料/强度/进阶参数）─→ 打印清单
+#                            └ 有潜在问题 ─→ 标记 + 人工复核（不退回用户）
+# 切片相关服务（services/slicing.py）保留未删，恢复时在此接回 /slice 接口即可。
 
 from __future__ import annotations
 
@@ -11,19 +16,15 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from pathlib import Path
 from ..core.database import get_db
 from ..core.dynamic_settings import get_setting
 from ..core.security import client_ip, get_current_user, write_audit
-from ..models import Campaign, CostLedger, Issue, Model, ModelVersion, Order, PrintJob, Review, User
-from ..models.permissions import PERMISSIONS
+from ..models import Campaign, CostLedger, Model, ModelVersion, Order, PrintJob, Review, User
 from ..services.config_service import get_activity_config
-from ..services.cost import settle_order_costs
-from ..services.slicing import parse_gcode_layers, prepare_slice_file, run_slice, run_val2_auto
-from ..services.slice_concurrency import slice_queue_stats
+from ..services.print_requirement import build_manifest, estimate, merge_params
 from ..services.state_machine import StateError, assert_campaign_open, transition
-from ..services.val1 import analyze_file, build_preset, run_val1
-from .auth import _user_out
+from ..services.val1 import build_preset, run_val1
+from .auth import _user_out  # noqa: F401  (保持与原路由一致的导入面)
 
 router = APIRouter()
 
@@ -33,6 +34,9 @@ UserDep = Annotated[User, Depends(get_current_user)]
 
 # 几何分析：独立子进程执行（trimesh 持 GIL，线程池超时杀不掉 → 改进程隔离，见 analysis_worker）
 from ..services.analysis_worker import analyze_with_timeout as _analyze_with_timeout
+
+# 可编辑模型的状态（草稿 / 摆放中 / 人工判定需修改 / 模型类返工）
+EDITABLE_MODEL_STATUS = ("draft", "modeling", "val1_failed", "rework")
 
 
 def get_order_or_403(db: Session, order_id: int, user: User) -> Order:
@@ -45,6 +49,7 @@ def get_order_or_403(db: Session, order_id: int, user: User) -> Order:
 
 
 def _order_out(db: Session, o: Order) -> dict:
+    jobs = sorted(o.print_jobs, key=lambda j: j.id)
     return {
         "id": o.id, "name": o.name, "status": o.status, "campaign_id": o.campaign_id,
         "model_id": o.model_id, "model_version_id": o.model_version_id,
@@ -56,7 +61,9 @@ def _order_out(db: Session, o: Order) -> dict:
         "reprint_rate": o.reprint_rate,
         "appeal": o.appeal, "feedback": o.feedback, "cost": o.cost,
         "timeline": o.timeline, "created_at": o.created_at,
-        "print_jobs": [_job_out(j) for j in o.print_jobs],
+        # 打印清单（执行打印的负责人照此落地；无则在 val1 后还未提交需求）
+        "manifest": (jobs[-1].gcode or {}).get("manifest") if jobs else None,
+        "print_jobs": [_job_out(j) for j in jobs],
         "issues": [{"id": i.id, "stage": i.stage, "type": i.type, "description": i.description, "status": i.status} for i in o.issues],
         "reviews": [{"stage": r.stage, "result": r.result, "reviewer": r.reviewer, "note": r.note, "at": r.at} for r in o.reviews],
         "ledger": [{"kind": c.kind, "amount": c.amount, "reason": c.reason, "at": c.at}
@@ -89,22 +96,7 @@ class SelectModelIn(BaseModel):
 class PlacementIn(BaseModel):
     placement: dict
     geometry: dict  # 前端分析报告（bbox/体积等）；服务端以 trimesh 真实分析为准兜底
-    self_filament: bool = False
-    # 材料/参数在 Val1 通过后选择（§4.1），摆放提交不再需要
-
-
-class ResubmitIn(BaseModel):
-    placement: dict
-    geometry: dict
-    material_id: str = "pla"
-    color: str = "#E8602C"
-    params: dict
-
-
-class ResliceIn(BaseModel):
-    params: dict
-    material_id: str = "pla"
-    color: str = "#E8602C"
+    self_filament: bool = False  # 兼容旧参数；自备耗材在打印需求页确认
 
 
 # ---------- 列表 / 创建 ----------
@@ -132,7 +124,7 @@ def create_order(db: DbDep, user: UserDep, request: Request, body: dict | None =
     db.add(order)
     db.commit()
     db.refresh(order)
-    entry = transition(order, "draft", "创建打印需求")
+    transition(order, "draft", "创建打印需求")
     db.commit()
     write_audit(db, user, "order.create", target=f"O{order.id}", ip=client_ip(request))
     return {"order": _order_out(db, order)}
@@ -146,7 +138,7 @@ def get_order(order_id: int, db: DbDep, user: UserDep):
 
 @router.get("/models/{version_id}/file")
 def model_file(version_id: int, db: DbDep, user: UserDep):
-    """模型文件下载（摆放工作区三维预览用；归属校验：只能取自己模型或负责人）"""
+    """模型文件下载（摆放工作区三维预览 + 打印执行人下载模型用；归属校验）"""
     mv = db.get(ModelVersion, version_id)
     if not mv or not mv.file_path or mv.file_path.startswith("preset:"):
         raise HTTPException(status_code=404, detail="模型文件不存在")
@@ -163,7 +155,7 @@ def model_file(version_id: int, db: DbDep, user: UserDep):
 @router.post("/orders/{order_id}/select-model")
 def select_model(order_id: int, body: SelectModelIn, db: DbDep, user: UserDep):
     order = get_order_or_403(db, order_id, user)
-    if order.status not in ("draft", "modeling", "val1_failed", "rework", "val2_failed"):
+    if order.status not in EDITABLE_MODEL_STATUS:
         raise HTTPException(status_code=409, detail="当前状态不能更换模型")
     if body.preset_kind:
         # 内置演示模型：程序化生成 + 真实 trimesh 分析
@@ -197,7 +189,7 @@ def upload_model(order_id: int, file: UploadFile, db: DbDep, user: UserDep):
     """上传模型（sync def：读取+几何分析在 FastAPI 线程池执行；
     分析走独立子进程，主进程 GIL/event loop 均不被阻塞——大文件分析期间其他请求正常响应）"""
     order = get_order_or_403(db, order_id, user)
-    if order.status not in ("draft", "modeling", "val1_failed", "rework", "val2_failed"):
+    if order.status not in EDITABLE_MODEL_STATUS:
         raise HTTPException(status_code=409, detail="当前状态不能上传模型")
     ext = os.path.splitext(file.filename or "")[1].lower()
     if ext not in (".stl", ".obj"):
@@ -235,7 +227,7 @@ class PlacementSaveIn(BaseModel):
 
 @router.post("/orders/{order_id}/placement-preview")
 def save_placement_preview(order_id: int, body: PlacementSaveIn, db: DbDep, user: UserDep):
-    """仅保存摆放结果（不触发 Val1）：工作区保存 → 跳参数配置页（摆放与参数分两界面）"""
+    """仅保存摆放结果（不触发 Val1）：工作区保存 → 下一步提交 Val1"""
     order = get_order_or_403(db, order_id, user)
     if order.status not in ("draft", "modeling", "val1_failed"):
         raise HTTPException(status_code=409, detail="当前状态不能保存摆放")
@@ -245,12 +237,16 @@ def save_placement_preview(order_id: int, body: PlacementSaveIn, db: DbDep, user
     return {"order": _order_out(db, order)}
 
 
-# ---------- 摆放提交 → Val1 → 切片 → Val2 自动检查 ----------
+# ---------- 摆放提交 → Val1（自动；无退回，标记后转人工） ----------
 
 @router.post("/orders/{order_id}/placement")
 def submit_placement(order_id: int, body: PlacementIn, db: DbDep, user: UserDep):
-    """摆放提交 → Val1（§4.1：摆放 → Val1 → 耗材/参数 → 切片）。
-    Val1 只依赖摆放后的几何（trimesh），不需要耗材/切片参数；通过后进入切片环节（等参数页提交）。"""
+    """摆放提交 → Val1（§5）。
+
+    判定（无退回机制）：
+      · 全部通过        → print_config（打印需求配置）
+      · 有警告/不通过项 → val1_review（**标记** + 转负责人人工复核，订单不退回用户）
+    """
     order = get_order_or_403(db, order_id, user)
     if order.status not in ("modeling", "val1_failed"):
         raise HTTPException(status_code=409, detail="当前状态不能提交摆放")
@@ -258,7 +254,6 @@ def submit_placement(order_id: int, body: PlacementIn, db: DbDep, user: UserDep)
         raise HTTPException(status_code=400, detail="请先选择或上传模型")
     order.placement = body.placement
     order.geometry = body.geometry
-    order.self_filament = body.self_filament  # 材料/参数在 Val1 通过后选择（§4.1）
 
     config = get_activity_config(db, order.campaign)
     transition(order, "val1_pending", "提交 Val1 自动审核")
@@ -267,191 +262,103 @@ def submit_placement(order_id: int, body: PlacementIn, db: DbDep, user: UserDep)
     stats = dict(mv.stats) if mv and mv.stats else dict(body.geometry or {})
     # 摆放缩放换算：壁厚/体积/表面积随 scale 线性/立方缩放（否则单位或缩放后的几何量失真，
     # 例：±0.5 坐标的模型放大 100 倍打印时，壁厚/体积必须按 scale 换算后再过 Val1）
-    scale = float((body.placement or {}).get("scale") or 1)
-    if scale != 1:
+    # scale 支持 [x,y,z] 三轴（前端手柄/单轴缩放）或单个数字（旧数据）
+    raw_scale = (body.placement or {}).get("scale")
+    if isinstance(raw_scale, (list, tuple)) and len(raw_scale) == 3:
+        sx, sy, sz = (float(v or 1) for v in raw_scale)
+    else:
+        sx = sy = sz = float(raw_scale or 1)
+    if (sx, sy, sz) != (1.0, 1.0, 1.0):
         if stats.get("bbox"):
-            stats["bbox"] = [round(b * scale, 2) for b in stats["bbox"]]
+            stats["bbox"] = [round(b * s, 2) for b, s in zip(stats["bbox"], (sx, sy, sz))]
         if stats.get("min_wall") is not None:
-            stats["min_wall"] = round(stats["min_wall"] * scale, 2)
+            stats["min_wall"] = round(stats["min_wall"] * min(sx, sy, sz), 2)
         if stats.get("volume_cm3"):
-            stats["volume_cm3"] = round(stats["volume_cm3"] * scale ** 3, 2)
+            stats["volume_cm3"] = round(stats["volume_cm3"] * sx * sy * sz, 2)
         if stats.get("surface_cm2"):
-            stats["surface_cm2"] = round(stats["surface_cm2"] * scale ** 2, 1)
+            stats["surface_cm2"] = round(stats["surface_cm2"] * (sx * sy + sy * sz + sz * sx) / 3, 1)
     if body.geometry and body.geometry.get("bbox"):
         stats["bbox"] = body.geometry["bbox"]
-    val1 = run_val1(stats, config)  # 纯几何判定，不依赖耗材/切片参数
+    val1 = run_val1(stats, config)  # 纯几何判定，不依赖耗材/参数
+    flagged = [i for i in val1["items"] if i["level"] != "pass"]
+    # 标记：哪个模型版本、哪些检查项有潜在问题（订单状态与问题分离，§12.3）
+    val1["flagged"] = bool(flagged)
+    val1["flagged_items"] = [{"id": i["id"], "name": i["name"], "level": i["level"], "message": i["message"]}
+                             for i in flagged]
     order.val1 = val1
     db.add(Review(order_id=order.id, stage="val1", result=val1["result"], reviewer="系统", note=val1["summary"]))
-    db.flush()
 
-    if val1["result"] == "不通过":
-        transition(order, "val1_failed", f"Val1 不通过：{val1['summary']}")
+    if not flagged:
+        transition(order, "print_config", "Val1 通过（无潜在问题），进入打印需求配置")
         db.commit()
-        return {"order": _order_out(db, order), "val1": val1}
-    if val1["result"] == "警告":
-        transition(order, "val1_appeal", f"Val1 警告：{val1['summary']}（可接受风险申诉或修改模型）")
-        db.commit()
-        return {"order": _order_out(db, order), "val1": val1}
+        return {"order": _order_out(db, order), "val1": val1, "next": "print_config"}
 
-    transition(order, "slicing", "Val1 通过，进入耗材选择与参数设置（§4.1）")
+    names = "、".join(i["name"] for i in flagged[:4]) + ("…" if len(flagged) > 4 else "")
+    transition(order, "val1_review",
+               f"Val1 标记 {len(flagged)} 项潜在问题（{names}），转负责人人工复核（不退回用户）")
     db.commit()
-    return {"order": _order_out(db, order), "val1": val1}
+    return {"order": _order_out(db, order), "val1": val1, "next": "val1_review"}
 
 
-def _do_slice(db: Session, order: Order, config: dict, note: str, confirm_required: bool = True) -> dict:
-    transition(order, "slicing", note)
-    material = _material_from_config(config, order.material_id)
-    params = dict(order.params or {})
-    if "preset" in params:
-        presets = {p["id"]: p for p in config.get("presets", [])}
-        preset = presets.get(params["preset"], {})
-        merged = {**preset, **{k: v for k, v in params.items() if k != "preset"}}
-        order.params = merged
-    mv = db.get(ModelVersion, order.model_version_id) if order.model_version_id else None
-    from ..core.config import settings as _st
-    model_path = prepare_slice_file(order, mv, Path(_st.data_dir) / "slices")
-    slice_result = run_slice(order.geometry, order.params, material, config, model_path)
-    order.slice = slice_result
-    val2auto = run_val2_auto(slice_result, order, order.params, material, config)
-    order.val2auto = val2auto
-    if confirm_required:
-        # 用户预览确认后再提交 Val2（§6：提交切片 → 预览 → 返回调整/提交审核）
-        transition(order, "slicing",
-                   f"切片完成（预计 {round(slice_result['est_time_sec'] / 60)}min / {slice_result['est_weight_g']}g），"
-                   f"等待预览确认（可返回调整或提交审核）")
-        db.commit()
-    else:
-        transition(order, "val2_pending",
-                   f"切片完成（预计 {round(slice_result['est_time_sec'] / 60)}min / {slice_result['est_weight_g']}g），"
-                   f"Val2 自动检查{val2auto['result']}，等待负责人人工审核")
-        db.commit()
-    return {"order": _order_out(db, order), "val1": order.val1, "slice": slice_result, "val2auto": val2auto}
+# ---------- 打印需求配置（材料 / 强度 / 进阶参数）→ 打印清单 ----------
 
-
-class SliceIn(BaseModel):
+class PrintRequirementIn(BaseModel):
     material_id: str = "pla"
     color: str = "#E8602C"
-    params: dict
-    self_filament: bool = False
+    strength: str = "standard"       # light / standard / strong / ultra
+    advanced: dict | None = None     # 进阶手动覆盖（字段名同 OrcaSlicer）
+    self_filament: bool = False      # 自备耗材（§16.3：先检验合格再打印）
+    operator_note: str = ""          # 给执行打印人的备注
 
 
-@router.post("/orders/{order_id}/slice")
-def submit_slice(order_id: int, body: SliceIn, db: DbDep, user: UserDep):
-    """耗材选择 + 参数设置 → 切片 → Val2 自动检查（§4.1：Val1 通过后）。
-    返回切片结果与 G-code 预览数据（进阶）。"""
+@router.post("/orders/{order_id}/print-requirement")
+def submit_print_requirement(order_id: int, body: PrintRequirementIn, db: DbDep, user: UserDep):
+    """Val1 通过（或人工放行）后：保存材料/强度/进阶参数 → 生成打印清单（PrintJob）。
+
+    **不进行在线切片**：参数以结构化清单保存，执行打印的负责人据清单在切片器中落地。
+    """
     order = get_order_or_403(db, order_id, user)
-    if order.status not in ("slicing", "val2_failed", "rework"):
-        raise HTTPException(status_code=409, detail="当前状态不能提交切片参数")
+    if order.status not in ("print_config", "rework"):
+        raise HTTPException(status_code=409, detail="当前状态不能提交打印需求")
+    if order.status == "rework":
+        last = order.issues[-1] if order.issues else None
+        if last and last.type not in ("PARAMETER", "OTHER"):
+            raise HTTPException(status_code=409,
+                                detail="该问题需修改模型或由负责人安排重打，不能直接改打印需求")
+
+    config = get_activity_config(db, order.campaign)
+    material = _material_from_config(config, body.material_id)
+    params = merge_params(body.material_id, body.strength, body.advanced)
+    if body.operator_note.strip():
+        params["operator_note"] = body.operator_note.strip()[:500]
+
     order.material_id = body.material_id
     order.color = body.color
-    order.params = body.params
+    order.params = params
     order.self_filament = body.self_filament
-    config = get_activity_config(db, order.campaign)
-    try:
-        return _do_slice(db, order, config, "云端切片中（OrcaSlicer）")
-    except RuntimeError as e:
-        raise HTTPException(status_code=400, detail=f"切片失败：{e}")
 
+    est = estimate((order.val1 or {}).get("stats") or order.geometry or {}, material, params)
+    manifest = build_manifest(order, material, params, est)
 
-@router.get("/orders/{order_id}/layer-preview")
-def layer_preview(order_id: int, db: DbDep, user: UserDep, max_layers: int = 80):
-    """逐层路径预览（§6.2/§7.3）：从切片产物 plate_1.gcode 解析每层挤出路径"""
-    import zipfile
-    order = get_order_or_403(db, order_id, user)
-    pf = (order.slice or {}).get("project_file")
-    if not pf or not os.path.exists(pf):
-        raise HTTPException(status_code=404, detail="该需求尚未切片")
-    with zipfile.ZipFile(pf) as z:
-        if "Metadata/plate_1.gcode" not in z.namelist():
-            raise HTTPException(status_code=404, detail="切片产物缺少 G-code")
-        gcode = z.read("Metadata/plate_1.gcode").decode("utf-8", errors="replace")
-    layers = parse_gcode_layers(gcode, max_layers=max_layers)
-    return {"layers": layers, "count": len(layers), "layer_height": (order.params or {}).get("layer_height") or 0.2}
-
-
-@router.post("/orders/{order_id}/confirm-slice")
-def confirm_slice(order_id: int, db: DbDep, user: UserDep):
-    """预览确认 → 提交 Val2 人工审核"""
-    order = get_order_or_403(db, order_id, user)
-    if order.status != "slicing":
-        raise HTTPException(status_code=409, detail="当前状态不能提交审核")
-    if not order.slice:
-        raise HTTPException(status_code=409, detail="尚未切片")
-    transition(order, "val2_pending", "切片预览确认，提交 Val2 人工审核")
+    seq = len(order.print_jobs) + 1
+    job = PrintJob(order_id=order.id, seq=seq, status="queued",
+                   est_time_sec=est["time_sec"], est_weight_g=est["weight_g"],
+                   gcode={"source": "estimate", "manifest": manifest},
+                   note=f"清单 #{seq}：{material['name']} · {params.get('strength_name')}强度 · "
+                        f"{est['weight_g']}g（估算）/ {round(est['time_sec'] / 60)}min（估算）")
+    db.add(job)
+    blocked = False
+    if order.self_filament and not order.filament_approved:
+        job.status = "blocked"
+        job.note += " · 自备耗材待检验（§16.3）"
+        blocked = True
+    transition(order, "queued",
+               f"打印需求已提交（{material['name']} / {params.get('strength_name')}强度），"
+               f"生成打印清单 #{seq}"
+               + ("；自备耗材待检验合格后入队" if blocked else "，等待负责人执行打印"))
     db.commit()
-    return {"order": _order_out(db, order)}
-
-
-@router.post("/orders/{order_id}/back-to-modeling")
-def back_to_modeling(order_id: int, db: DbDep, user: UserDep):
-    """预览不满意 → 返回摆放调整（重新走 Val1）"""
-    order = get_order_or_403(db, order_id, user)
-    if order.status != "slicing":
-        raise HTTPException(status_code=409, detail="当前状态不能返回调整")
-    transition(order, "modeling", "返回摆放调整（重新走 Val1）")
-    db.commit()
-    return {"order": _order_out(db, order)}
-
-
-@router.get("/slicing/queue")
-def slicing_queue(db: DbDep, user: UserDep):
-    """云端切片队列状态（执行中/排队中/并发上限），供前端排队提示"""
-    return slice_queue_stats()
-
-
-# ---------- 申诉 / 重新提交 / 重切 ----------
-
-class AppealIn(BaseModel):
-    note: str = "接受风险，申请人工审核"
-
-
-@router.post("/orders/{order_id}/appeal")
-def appeal(order_id: int, body: AppealIn, db: DbDep, user: UserDep):
-    order = get_order_or_403(db, order_id, user)
-    if order.status != "val1_appeal":
-        raise HTTPException(status_code=409, detail="当前状态不能申诉")
-    order.appeal = {"note": body.note, "at": _now()}
-    db.commit()
-    return {"order": _order_out(db, order)}
-
-
-@router.post("/orders/{order_id}/resubmit")
-def resubmit(order_id: int, body: ResubmitIn, db: DbDep, user: UserDep):
-    order = get_order_or_403(db, order_id, user)
-    if order.status not in ("val1_appeal", "val1_failed"):
-        raise HTTPException(status_code=409, detail="当前状态不能重新提交")
-    # 新模型版本（§13.1：不覆盖历史版本）
-    if order.model_id:
-        version = ModelVersion(model_id=order.model_id, version=db.query(ModelVersion)
-                               .filter_by(model_id=order.model_id).count() + 1,
-                               file_path=db.get(ModelVersion, order.model_version_id).file_path if order.model_version_id else "",
-                               stats=order.geometry or {}, checks={})
-        db.add(version)
-        db.flush()
-        order.model_version_id = version.id
-    order.placement = body.placement
-    order.geometry = body.geometry
-    order.material_id = body.material_id
-    order.color = body.color
-    order.params = body.params
-    transition(order, "modeling", "已生成新模型版本，重新进入摆放与 Val1")
-    db.commit()
-    return {"order": _order_out(db, order)}
-
-
-@router.post("/orders/{order_id}/reslice")
-def reslice(order_id: int, body: ResliceIn, db: DbDep, user: UserDep):
-    order = get_order_or_403(db, order_id, user)
-    if order.status not in ("val2_failed", "rework"):
-        raise HTTPException(status_code=409, detail="当前状态不能重新切片")
-    order.params = body.params
-    order.material_id = body.material_id
-    order.color = body.color
-    config = get_activity_config(db, order.campaign)
-    try:
-        return _do_slice(db, order, config, "调整参数后重新切片")
-    except RuntimeError as e:
-        raise HTTPException(status_code=400, detail=f"切片失败：{e}")
+    db.refresh(job)
+    return {"order": _order_out(db, order), "job": _job_out(job), "manifest": manifest, "estimate": est}
 
 
 # ---------- 用户反馈 / 结清 ----------

@@ -8,11 +8,15 @@ const routes = [
   { path: '/orders/:id', component: () => import('@/views/OrderDetail.vue') },
   { path: '/create', component: () => import('@/views/CreateOrder.vue') },
   { path: '/create/:id/workspace', component: () => import('@/views/Workspace.vue') },
-  { path: '/create/:id/params', component: () => import('@/views/ParamsConfig.vue') },
+  // 打印需求配置（材料/强度/进阶参数 → 打印清单）；在线切片页 ParamsConfig.vue 已暂缓
+  { path: '/create/:id/print-req', component: () => import('@/views/PrintRequirement.vue') },
+  // eslint-disable-next-line
+  // { path: '/create/:id/params', component: () => import('@/views/ParamsConfig.vue') },
   { path: '/ai', component: () => import('@/views/AiModeling.vue') },
   { path: '/manual', component: () => import('@/views/Manual.vue'), meta: { public: true } },
   // 负责人端
   { path: '/admin', component: () => import('@/views/admin/AdminHome.vue'), meta: { admin: true } },
+  { path: '/admin/manifest', component: () => import('@/views/admin/PrintManifest.vue'), meta: { admin: true } },
   { path: '/admin/config', component: () => import('@/views/admin/ConfigCenter.vue'), meta: { admin: true } },
   { path: '/admin/roles', component: () => import('@/views/admin/RoleManage.vue'), meta: { admin: true } },
   { path: '/admin/qa-config', component: () => import('@/views/admin/QaConfig.vue'), meta: { admin: true } },

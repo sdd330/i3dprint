@@ -1,4 +1,4 @@
-# E3DP backend — 公开元数据（活动信息/材料/档位/合规/联系人），无需登录
+# E3DP backend — 公开元数据（活动信息/材料/强度档/合规/联系人），无需登录
 
 from typing import Annotated
 
@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from ..core.database import get_db
 from ..models import Campaign
 from ..services.config_service import get_activity_config, get_sources
+from ..services.print_requirement import STRENGTH_TIERS
 
 router = APIRouter()
 
@@ -25,11 +26,19 @@ def bootstrap(db: Annotated[Session, Depends(get_db)]):
             "config_sources": get_sources(campaign) if campaign else {},
         } if campaign else None,
         "materials": cfg.get("fee", {}).get("materials", []),
+        "strength_tiers": STRENGTH_TIERS,  # 打印需求「强度」档（映射到工艺参数）
         "presets": cfg.get("presets", []),
         "val1": cfg.get("val1", {}),
         "compliance": cfg.get("compliance", {}),
         "fee": cfg.get("fee", {}),
         "printers": _printers_out(),
+        # 能力开关（前端据此隐藏入口，后端逻辑保留可随时恢复）
+        "flow": {
+            "online_slicing": False,   # 在线切片（OrcaSlicer）已暂缓
+            "val2_review": False,      # Val2 切片核验已暂缓
+            "val1_sendback": False,    # Val1 不再自动退回，只标记 + 转人工
+            "billing_visible": False,  # 收费/费用信息暂时隐去
+        },
     }
 
 

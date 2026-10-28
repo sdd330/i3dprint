@@ -1,13 +1,18 @@
 <script setup>
 // 操作日志（§13.4）：登录/创建/审核/打印/验收/费用 均记录
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { api } from '@/api'
+import { useAppStore } from '@/stores'
+
+const app = useAppStore()
+const billingVisible = computed(() => app.billingVisible)
 
 // 后端暂未提供 audit log 列表 API，用配置审计 + 提示补充
 const audits = ref([])
 const logs = ref([])
 
 onMounted(async () => {
+  if (!app.meta) app.loadMeta().catch(() => {})
   audits.value = (await api.get('/admin/config/audits')).audits
   logs.value = (await api.get('/admin/audit-logs')).logs
 })
@@ -16,7 +21,7 @@ onMounted(async () => {
 <template>
   <div class="page" style="max-width: 980px">
     <h1 class="page-title">审计与可追溯</h1>
-    <p class="page-sub">核心数据不可无痕篡改：模型版本、切片版本、审核记录、费用流水均保留历史（§13）</p>
+    <p class="page-sub">核心数据不可无痕篡改：模型版本、打印清单、审核记录均保留历史（§13）</p>
 
     <div class="card" style="margin-bottom: 16px">
       <b>配置修改审计</b>
@@ -50,9 +55,9 @@ onMounted(async () => {
       <b>可追溯性设计</b>
       <el-descriptions :column="1" border size="small" style="margin-top: 8px">
         <el-descriptions-item label="模型版本">修改模型生成新版本，不覆盖历史（§13.1）</el-descriptions-item>
-        <el-descriptions-item label="切片版本">记录模型版本/切片软件/参数（§13.2）</el-descriptions-item>
-        <el-descriptions-item label="审核结果">Val1/Val2/Val3 审核人、时间、版本均记录（§13.3）</el-descriptions-item>
-        <el-descriptions-item label="费用流水">append-only，每笔关联活动/需求/打印任务并注明原因（§13.5）</el-descriptions-item>
+        <el-descriptions-item label="打印清单">记录模型版本 / 材料 / 强度 / 工艺参数（§13.2；在线切片暂缓）</el-descriptions-item>
+        <el-descriptions-item label="审核结果">Val1 / Val3 审核人、时间、版本均记录（§13.3；Val2 切片核验暂缓）</el-descriptions-item>
+        <el-descriptions-item v-if="billingVisible" label="费用流水">append-only，每笔关联活动/需求/打印任务并注明原因（§13.5）</el-descriptions-item>
       </el-descriptions>
     </div>
   </div>

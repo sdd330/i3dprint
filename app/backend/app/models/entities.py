@@ -15,12 +15,11 @@ ORDER_STATUS = {
     "draft": "草稿",
     "modeling": "模型处理中",  # 含摆放/尺寸调整子阶段
     "val1_pending": "Val1审核中",
-    "val1_failed": "Val1未通过",
-    "val1_appeal": "Val1警告/申诉中",
-    "slicing": "切片中",
-    "val2_pending": "Val2审核中",
-    "val2_failed": "Val2未通过",
-    "queued": "等待打印",
+    # 2026-10：Val1 无退回机制——有潜在问题只做标记并转人工复核
+    "val1_review": "Val1人工复核（已标记）",
+    "val1_failed": "Val1人工判定需修改",
+    "print_config": "待配置打印需求",  # 材料 / 强度 / 进阶参数 → 打印清单
+    "queued": "待打印（已入清单）",
     "printing": "打印中",
     "val3_pending": "等待Val3验收",
     "val3_failed": "Val3未通过",
@@ -28,6 +27,11 @@ ORDER_STATUS = {
     "settlement": "成本核算中",
     "completed": "已完成",
     "terminated": "已终止",
+    # —— 已暂缓（在线切片 + Val2 切片核验），仅为历史数据展示保留 ——
+    "val1_appeal": "Val1警告/申诉中（旧流程）",
+    "slicing": "切片中（旧流程）",
+    "val2_pending": "Val2审核中（旧流程）",
+    "val2_failed": "Val2未通过（旧流程）",
 }
 
 ISSUE_TYPES = {

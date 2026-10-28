@@ -37,6 +37,14 @@ export const useAuthStore = defineStore('auth', {
 
 export const useAppStore = defineStore('app', {
   state: () => ({ meta: null }),
+  getters: {
+    // 能力开关（后端 /meta/bootstrap → flow）：未加载时按「关闭」处理，避免先闪出入口
+    flow: (s) => s.meta?.flow || {},
+    // 收费/费用信息暂时隐去（用户要求）：false 时全部费用相关 UI 都不渲染
+    billingVisible: (s) => !!s.meta?.flow?.billing_visible,
+    materials: (s) => s.meta?.materials || [],
+    strengthTiers: (s) => s.meta?.strength_tiers || [],
+  },
   actions: {
     async loadMeta() {
       this.meta = await api.get('/meta/bootstrap')

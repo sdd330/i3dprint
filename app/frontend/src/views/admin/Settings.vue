@@ -1,9 +1,12 @@
 <script setup>
 // 软件设置（P5）：环境变量 / 跨活动全局设置的图形化配置
 // 改动即时生效；重启类项（JWT 密钥等）保存后提示重启
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, computed } from 'vue'
 import { ElMessage } from 'element-plus'
 import { api } from '@/api'
+import { useAppStore } from '@/stores'
+
+const app = useAppStore()
 
 const groups = ref(null)
 const form = reactive({})
@@ -12,7 +15,7 @@ const saving = ref(false)
 
 const CATEGORIES = {
   external: { name: '外部服务', desc: 'AI 建模（Tripo）/ 站娘问答（DeepSeek）API 配置，按实际用量计费' },
-  slicer: { name: '切片器', desc: 'OrcaSlicer CLI 与 X1C 打印/工艺/耗材 profile（关闭模拟后启用真实切片）' },
+  slicer: { name: '切片器（暂缓）', desc: 'OrcaSlicer CLI 与 X1C profile —— 在线切片暂停期间本组隐藏，配置保留可随时恢复' },
   service: { name: '服务', desc: '上传限制 / 分析超时 / JWT 密钥（重启类）' },
   misc: { name: '平台声明', desc: '跨活动不变的全局声明' },
 }
@@ -61,7 +64,18 @@ async function save() {
   }
 }
 
-onMounted(load)
+// 在线切片暂缓时隐藏切片器设置组（配置仍在库中，恢复只需把 flow.online_slicing 置 true）
+const groupsView = computed(() => {
+  if (!groups.value) return null
+  if (app.flow?.online_slicing) return groups.value
+  const { slicer, ...rest } = groups.value
+  return rest
+})
+
+onMounted(async () => {
+  if (!app.meta) await app.loadMeta().catch(() => {})
+  load()
+})
 
 function cast(v, type) {
   if (type === 'bool') return v === 'true' || v === true
@@ -76,8 +90,8 @@ function cast(v, type) {
     <h1 class="page-title">软件设置</h1>
     <p class="page-sub">环境变量与跨活动不变的全局设置，图形化配置（原 .env）· 改动即时生效 · 重启类项保存后需重启</p>
 
-    <div v-if="groups">
-      <div v-for="(rows, cat) in groups" :key="cat" class="card" style="margin-bottom: 16px">
+    <div v-if="groupsView">
+      <div v-for="(rows, cat) in groupsView" :key="cat" class="card" style="margin-bottom: 16px">
         <h3 style="margin: 0 0 2px">{{ CATEGORIES[cat]?.name || cat }}</h3>
         <p class="muted" style="margin: 0 0 14px; font-size: 12.5px">{{ CATEGORIES[cat]?.desc }}</p>
 

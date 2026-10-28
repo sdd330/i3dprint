@@ -28,7 +28,7 @@ async function fillToOrder() {
   const d = await api.post('/orders', {})
   orderId.value = d.order.id
   await api.post(`/orders/${orderId.value}/select-model`, { preset_kind: result.value.kind })
-  ElMessage.success('已填充到新需求，照走 Val1/Val2 全部审核（不跳过）')
+  ElMessage.success('已填充到新需求，照走 Val1 与打印需求填写（不跳过）')
   router.push(`/create/${orderId.value}/workspace`)
 }
 </script>

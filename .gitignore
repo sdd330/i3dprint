@@ -39,3 +39,5 @@ logs/
 
 # ---- 本地工具输出 ----
 /tmp/
+
+.playwright-cli
