@@ -186,6 +186,42 @@ def print_complete(job_id: int, db: DbDep,
     return {"ok": True}
 
 
+class PrintTimeIn(BaseModel):
+    est_minutes: int | None = None      # 预计打印时长（分钟）——负责人按设备实际填写/修正
+    started_at: str | None = None       # 开始时间（ISO，如 2026-10-29T14:05）
+
+
+@router.post("/print/{job_id}/time")
+def print_set_time(job_id: int, body: PrintTimeIn, db: DbDep,
+                   user: Annotated[User, Depends(require_permission("print:manage"))], request: Request):
+    """打印中手动填写时间（用户 2026-10 需求）。
+
+    · est_minutes：覆盖由几何估算的预计时长（估算值只作参考，负责人以设备显示为准）
+    · started_at：修正开始时间（忘记点「开始打印」或需要回填实际起始时刻）
+    两者都可单独提交；进度条按 est_time_sec 与 started_at 推算，因此改完立即生效。
+    """
+    job = db.get(PrintJob, job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="打印任务不存在")
+    if job.status not in ("printing", "queued"):
+        raise HTTPException(status_code=409, detail="仅排队中/打印中的任务可填写时间")
+    changes = []
+    if body.est_minutes is not None:
+        if body.est_minutes <= 0:
+            raise HTTPException(status_code=400, detail="预计时长必须大于 0 分钟")
+        job.est_time_sec = int(body.est_minutes) * 60
+        changes.append(f"预计时长 {body.est_minutes}min")
+    if body.started_at:
+        job.started_at = body.started_at
+        changes.append(f"开始时间 {body.started_at}")
+    if not changes:
+        raise HTTPException(status_code=400, detail="请填写预计时长或开始时间")
+    job.note = f"{job.note or ''}｜负责人手动填写：{'，'.join(changes)}"[:500]
+    db.commit()
+    write_audit(db, user, "print.set_time", target=f"PJ{job.id}", detail="，".join(changes), ip=client_ip(request))
+    return {"ok": True, "job": {"id": job.id, "est_time_sec": job.est_time_sec, "started_at": job.started_at}}
+
+
 class PrintFailIn(BaseModel):
     note: str = "打印中途失败"
 
@@ -214,7 +250,7 @@ class RequeueIn(BaseModel):
 @router.post("/orders/{order_id}/requeue")
 def requeue(order_id: int, body: RequeueIn, db: DbDep,
             user: Annotated[User, Depends(require_permission("print:manage"))], request: Request):
-    """设备问题重打：rework → 直接入队（不需重切），新 PrintJob 按半价计费（§10.2）"""
+    """设备问题重打：rework → 直接重新入清单（沿用原打印清单，正常计费）"""
     order = _get_order(db, order_id)
     if order.status != "rework":
         raise HTTPException(status_code=409, detail="该需求不在重新处理状态")
@@ -227,11 +263,11 @@ def requeue(order_id: int, body: RequeueIn, db: DbDep,
                    est_time_sec=prev.est_time_sec if prev else 0,
                    est_weight_g=prev.est_weight_g if prev else 0,
                    gcode=prev.gcode if prev else {},
-                   note="设备问题半价重打（§10.2）：沿用原打印清单")
+                   note="设备问题重打：沿用原打印清单")
     db.add(job)
     transition(order, "queued", body.note)
     db.commit()
-    write_audit(db, user, "print.requeue_reprint", target=f"O{order.id}", detail="MACHINE 半价重打", ip=client_ip(request))
+    write_audit(db, user, "print.requeue_reprint", target=f"O{order.id}", detail="MACHINE 重打", ip=client_ip(request))
     return {"ok": True, "job_id": job.id}
 
 
@@ -265,10 +301,8 @@ def val3_review(order_id: int, body: Val3In, db: DbDep,
     elif body.issue_type == "MODEL":
         transition(order, "rework", "模型问题：需修改模型生成新版本，重走 Val1（§10.3）")
     elif body.issue_type == "MACHINE":
-        # 设备问题：半价重打（§10.2）
-        seq = len(order.print_jobs) + 1
-        order.reprint_rate = {**dict(order.reprint_rate or {}), str(seq): 0.5}
-        transition(order, "rework", "设备问题：设备处理后半价重打（§10.2）")
+        # 设备问题：设备处理后重打（不做价格区分，正常计费）
+        transition(order, "rework", "设备问题：设备处理后将重新打印")
     else:
         transition(order, "rework", "参数问题：用户调整打印需求（材料/强度/进阶参数）后重新进清单（§10.1）")
     db.commit()

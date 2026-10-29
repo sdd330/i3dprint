@@ -24,7 +24,7 @@ onMounted(() => { if (!app.meta) app.loadMeta().catch(() => {}) })
           <router-link to="/">首页</router-link>
           <router-link to="/orders">我的订单</router-link>
           <router-link to="/create">创建需求</router-link>
-          <router-link to="/ai">AI 建模</router-link>
+          <router-link v-if="app.flow.ai_modeling" to="/ai">AI 建模</router-link>
           <router-link to="/manual">使用手册</router-link>
           <template v-if="auth.isAdmin">
             <el-divider direction="vertical" style="margin: 0 6px" />

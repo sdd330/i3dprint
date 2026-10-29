@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 from ..models import ApiUsage, CostLedger, Order
 
-REPRINT_KINDS = {"PARAMETER": "参数问题重打", "MACHINE": "设备问题半价重打", "MODEL": "模型问题重打", "OTHER": "其他"}
+REPRINT_KINDS = {"PARAMETER": "参数问题重打", "MACHINE": "设备问题重打", "MODEL": "模型问题重打", "OTHER": "其他"}
 
 
 def calc_filament_fee(material: dict, weight_g: float, change_fee: float, color_changes: int = 0) -> dict:
@@ -61,7 +61,7 @@ def settle_order_costs(db: Session, order: Order, config: dict):
     maint_rule = fee_cfg.get("maintenance", {"base": 0.6, "per_gram": 0.004})
     done_jobs = [j for j in order.print_jobs if j.status == "done"]
     for job in done_jobs:
-        rate = (order.reprint_rate or {}).get(str(job.seq), 1.0)  # 设备问题半价重打（§10.2）
+        rate = (order.reprint_rate or {}).get(str(job.seq), 1.0)  # 历史数据的折扣系数（现一律 1.0）
         fee = calc_filament_fee(material, job.actual_weight_g or job.est_weight_g, change_fee)
         amount = round(fee["total"] * rate, 2)
         reason = REPRINT_KINDS.get("MACHINE", "") if rate < 1 else f"打印 #{job.seq} 耗材费"

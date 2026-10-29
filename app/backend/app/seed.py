@@ -25,7 +25,7 @@ DEFAULT_TEMPLATE_DATA = {
         ],
         "filament_change_fee": 1.5,      # 换料补偿（元/次）
         "maintenance": {"base": 0.6, "per_gram": 0.004},  # 维护费 = base + per_gram×重量
-        "reprint_rate": {"PARAMETER": 1.0, "MACHINE": 0.5, "MODEL": 0.0, "MACHINE_LIMIT": 0.0, "OTHER": 1.0},
+        "reprint_rate": {"PARAMETER": 1.0, "MACHINE": 1.0, "MODEL": 0.0, "MACHINE_LIMIT": 0.0, "OTHER": 1.0},  # 2026-10：取消设备问题半价
         "api": {"deepseek_input_per_mtok": 2.0, "deepseek_output_per_mtok": 8.0, "tripo_per_point": 0.1},
     },
     "val1": {
@@ -40,7 +40,7 @@ DEFAULT_TEMPLATE_DATA = {
         {"id": "fine", "name": "精细档", "layer_height": 0.12, "infill": 25, "speed": 80, "supports": "auto", "note": "细节好，耗时较长，适合小尺寸模型"},
     ],
     "print": {
-        "reprint_rate_machine": 0.5,  # 设备问题半价重打（§10.2）
+        "reprint_rate_machine": 1.0,  # 设备问题重打（2026-10 取消半价）
         "queue_strategy": "fifo",     # 队列调度策略（§8.2）
         "anomaly_requeue": True,      # 中间环节异常→重新排队（§16.4）
     },
@@ -149,7 +149,7 @@ def seed(db: Session):
             ("打印需求,强度,参数,清单,材料", "打印需求", "happy",
              "Val1 之后在「打印需求」页选材料、强度和进阶参数。强度分轻量/标准/坚固/超坚固（自动对应壁厚圈数与填充率），进阶可手动改层高、填充、支撑。提交后会生成一张打印清单交给执行打印的负责人——当前版本不做在线切片。"),
             ("val3,验收,实物", "Val3 验收", "warn",
-             "Val3 是打印完的实物验收：结构、翘边、层间分离、表面质量、关键尺寸。不通过会判定问题责任：参数→改打印需求重打、设备→半价重打、模型→改模型重走 Val1、设备能力上限→终止。"),
+             "Val3 是打印完的实物验收：结构、翘边、层间分离、表面质量、关键尺寸。不通过会判定问题责任：参数→改打印需求重打、设备→重打、模型→改模型重走 Val1、设备能力上限→终止。"),
             ("取件,取单,密码", "取件", "happy",
              "每场活动有一个「活动密码」，打印完成收到取件通知后，凭活动密码 + 需求编号到指定地点取件。密码每场更新，活动结束失效～"),
             ("自备耗材,自带", "创建需求", "happy",

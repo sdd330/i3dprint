@@ -94,7 +94,7 @@ onMounted(() => { if (!app.meta) app.loadMeta(); load() })
           <el-alert v-if="canAct().waitingReview" type="warning" :closable="false" style="padding: 6px 12px"
                     title="Val1 已标记潜在问题，负责人正在人工复核（不需要你重做）" />
           <el-alert v-if="canAct().machineWait" type="info" :closable="false" style="padding: 6px 12px"
-                    title="设备问题：负责人处理设备后安排半价重打（§10.2）" />
+                    title="设备问题：负责人处理设备后重新打印（§10.2）" />
           <el-button v-if="canAct().settle" type="success" @click="settle">确认完成</el-button>
         </div>
       </div>

@@ -52,7 +52,7 @@ onMounted(async () => {
           <el-button type="primary" size="large" style="flex: 1" @click="router.push('/create')">
             我要打印
           </el-button>
-          <el-button size="large" style="flex: 1" @click="router.push('/ai')">AI 建模</el-button>
+          <el-button v-if="app.flow.ai_modeling" size="large" style="flex: 1" @click="router.push('/ai')">AI 建模</el-button>
           <el-button size="large" style="flex: 1" @click="router.push('/orders')">我的订单</el-button>
         </div>
 

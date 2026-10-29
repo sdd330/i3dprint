@@ -1,7 +1,8 @@
 <script setup>
-// 负责人工作台：Val1 人工复核（标记项）· 打印清单 · 打印执行 · Val3 验收 · 活动生命周期
-// 2026-10：Val2 切片审核暂缓（人工复核对象改为 Val1 标记的潜在问题）；收费信息暂时隐去
-import { ref, onMounted, computed } from 'vue'
+// 负责人工作台：Val1 标记项复核 · 打印清单 · 打印执行 · Val3 验收 · 活动生命周期
+// 2026-10 调整：① 纵向单列排列 ② 打印清单只留材料、操作优先
+//              ③ 打印中可手动填写时间（开始时间 / 预计时长） ④ 设备问题重打（取消半价）
+import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { api } from '@/api'
@@ -16,6 +17,9 @@ const loading = ref(true)
 const STATUS_FLOW = ['待开放', '开放中', '收尾中', '已归档']
 const billingVisible = computed(() => app.billingVisible)
 
+// 手动填写时间（打印中）：jobId → { minutes, startedAt }
+const timeEdit = reactive({})
+
 async function load() {
   loading.value = true
   try {
@@ -23,6 +27,17 @@ async function load() {
     queues.value = q
     campaign.value = meta.campaign
     app.meta = meta
+    // 预填时间编辑框（不覆盖用户正在输入的值）
+    for (const o of q.printing || []) {
+      for (const j of o.print_jobs.filter(x => x.status === 'printing')) {
+        if (!timeEdit[j.id]) {
+          timeEdit[j.id] = {
+            minutes: Math.round((j.est_time_sec || 0) / 60) || null,
+            startedAt: (j.started_at || '').slice(0, 19),
+          }
+        }
+      }
+    }
   } finally {
     loading.value = false
   }
@@ -35,7 +50,7 @@ async function transitionCampaign(to) {
   load()
 }
 
-// —— Val1 人工复核（替代原申诉审核）——
+// —— Val1 人工复核（标记项）——
 async function val1Review(o, decision) {
   const label = { approve: '放行（进入打印需求配置）', modify: '要求修改模型', reject: '终止需求' }[decision]
   const { value } = await ElMessageBox.prompt(
@@ -73,6 +88,10 @@ async function downloadModel(row) {
   }
 }
 
+function materialOf(row) {
+  return app.materials.find(m => m.id === row.material_id)?.name || row.material_id
+}
+
 async function printStart(row) {
   const job = row.print_jobs.find(j => j.status === 'queued')
   if (!job) return ElMessage.warning('没有可开始的打印任务')
@@ -97,6 +116,22 @@ async function filamentCheck(row, approved) {
   load()
 }
 
+// —— 打印中：手动填写时间 ——
+async function saveTime(job) {
+  const edit = timeEdit[job.id] || {}
+  const payload = {}
+  if (edit.minutes) payload.est_minutes = Number(edit.minutes)
+  if (edit.startedAt) payload.started_at = edit.startedAt
+  if (!payload.est_minutes && !payload.started_at) return ElMessage.warning('请填写开始时间或预计时长')
+  try {
+    await api.post(`/admin/print/${job.id}/time`, payload)
+    ElMessage.success('时间已保存')
+    load()
+  } catch (e) {
+    ElMessage.error(e.message)
+  }
+}
+
 async function val3Pass(o) {
   await ElMessageBox.confirm(`确认 Val3 验收通过？需求 O${o.id} 进入结算（§9）。`, 'Val3 实物验收')
   await api.post(`/admin/val3/${o.id}`, { decision: 'pass', note: '验收通过' })
@@ -108,7 +143,7 @@ async function val3Pass(o) {
 const val3Dialog = ref({ visible: false, order: null, issueType: 'PARAMETER', note: '' })
 const VAL3_TYPES = [
   ['PARAMETER', '参数问题', '用户调整打印需求（材料/强度/参数）→ 重新进清单（§10.1）'],
-  ['MACHINE', '设备问题', '设备处理 → 半价重打（§10.2）'],
+  ['MACHINE', '设备问题', '设备处理 → 重新打印（§10.2）'],
   ['MODEL', '模型问题', '修改模型新版本 → 重走 Val1（§10.3）'],
   ['MACHINE_LIMIT', '设备能力上限', '不再重打，需求终止（§10.4）'],
 ]
@@ -125,11 +160,11 @@ async function val3SubmitFail() {
   load()
 }
 
-// 设备问题：直接入队重打（§10.2）
+// 设备问题：直接重新入清单（沿用原打印清单）
 async function requeueReprint(o) {
-  await ElMessageBox.confirm(`确认设备已处理，安排需求 O${o.id} 半价重打？`, '设备问题重打（§10.2）')
-  await api.post(`/admin/orders/${o.id}/requeue`, { note: '设备已处理，半价重打入清单' })
-  ElMessage.success('已重新进入打印清单（半价计费）')
+  await ElMessageBox.confirm(`确认设备已处理，安排需求 O${o.id} 重新打印？`, '设备问题重打（§10.2）')
+  await api.post(`/admin/orders/${o.id}/requeue`, { note: '设备已处理，重新入清单' })
+  ElMessage.success('已重新进入打印清单')
   load()
 }
 
@@ -139,8 +174,6 @@ async function showBill() {
   bill.value = (await api.get('/admin/campaign/bill')).bill
   billVisible.value = true
 }
-
-const MANIFEST_STATUS = { queued: '待打印', blocked: '待检验耗材', printing: '打印中' }
 
 onMounted(load)
 </script>
@@ -153,7 +186,7 @@ onMounted(load)
     </p>
 
     <!-- 活动生命周期 -->
-    <div class="card" style="margin-bottom: 20px">
+    <div class="card" style="margin-bottom: 16px">
       <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px">
         <div>
           <b style="font-size: 15px">{{ campaign?.name }}</b>
@@ -170,156 +203,163 @@ onMounted(load)
       </div>
     </div>
 
-    <div v-loading="loading" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 16px">
+    <!-- 纵向单列 -->
+    <div v-loading="loading" style="display: flex; flex-direction: column; gap: 16px">
       <!-- Val1 人工复核（标记项） -->
       <div class="card">
         <h3 style="margin: 0 0 10px">
           Val1 标记项复核 <el-tag size="small" round>{{ queues?.val1_review?.length || 0 }}</el-tag>
         </h3>
-        <div v-for="o in queues?.val1_review || []" :key="o.id" class="queue-item">
-          <b>O{{ o.id }} · {{ o.name }}</b>
-          <div class="muted" style="font-size: 12.5px">
-            {{ o.user }} · Val1 {{ o.val1?.result }} · 尺寸 {{ (o.geometry?.bbox || []).join(' × ') }} mm
-          </div>
-          <div style="margin-top: 4px">
+        <div v-for="o in queues?.val1_review || []" :key="o.id" class="row-item">
+          <div style="flex: 1; min-width: 220px">
+            <b>O{{ o.id }} · {{ o.name }}</b>
+            <div class="muted" style="font-size: 12.5px">
+              {{ o.user }} · Val1 {{ o.val1?.result }} · 尺寸 {{ (o.geometry?.bbox || []).join(' × ') }} mm
+            </div>
             <el-tag v-for="f in o.val1?.flagged_items || []" :key="f.id" size="small"
-                    :type="f.level === 'fail' ? 'danger' : 'warning'" effect="plain" style="margin: 0 4px 4px 0">
+                    :type="f.level === 'fail' ? 'danger' : 'warning'" effect="plain" style="margin: 4px 4px 0 0">
               {{ f.name }}
             </el-tag>
           </div>
-          <div style="margin-top: 6px; display: flex; gap: 6px; flex-wrap: wrap">
+          <div style="display: flex; gap: 6px; flex-wrap: wrap">
             <el-button size="small" type="success" @click="val1Review(o, 'approve')">放行</el-button>
             <el-button size="small" type="warning" @click="val1Review(o, 'modify')">要求修改</el-button>
             <el-button size="small" type="danger" @click="val1Review(o, 'reject')">终止</el-button>
           </div>
         </div>
-        <el-empty v-if="!queues?.val1_review?.length" description="暂无标记项待复核" :image-size="50" />
+        <el-empty v-if="!queues?.val1_review?.length" description="暂无标记项待复核" :image-size="46" />
       </div>
 
-      <!-- 打印清单（待执行打印） -->
-      <div class="card" style="grid-column: span 2">
+      <!-- 打印清单：只留材料，操作优先 -->
+      <div class="card">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px">
           <h3 style="margin: 0">
             打印清单 <el-tag size="small" round>{{ queues?.print_queue?.length || 0 }}</el-tag>
           </h3>
           <el-button size="small" @click="router.push('/admin/manifest')">整页清单 / 打印 →</el-button>
         </div>
-        <el-table :data="queues?.print_queue || []" size="small">
-          <el-table-column label="需求" width="180">
-            <template #default="{ row }">
-              <b>O{{ row.id }}</b> · {{ row.name }}
-              <div class="muted mono" style="font-size: 11px">{{ row.user }}</div>
-            </template>
-          </el-table-column>
-          <el-table-column label="材料 / 颜色" width="150">
-            <template #default="{ row }">
-              <span>{{ app.materials.find(m => m.id === row.material_id)?.name || row.material_id }}</span>
-              <span :style="{ display: 'inline-block', width: 10, height: 10, borderRadius: 3, background: row.color, marginLeft: 6, border: '1px solid var(--line)' }" />
-              <div v-if="row.self_filament" class="muted" style="font-size: 11.5px">
-                自备耗材{{ row.filament_approved ? '（已检）' : '（待检）' }}
-              </div>
-            </template>
-          </el-table-column>
-          <el-table-column label="强度 / 参数" width="170">
-            <template #default="{ row }">
-              <div>{{ row.params?.strength_name || '—' }}</div>
-              <div class="mono muted" style="font-size: 11px">
-                {{ row.params?.layer_height }}mm · 壁厚{{ row.params?.wall_loops }}圈 · 填充{{ row.params?.infill_density }}%
-              </div>
-            </template>
-          </el-table-column>
-          <el-table-column label="尺寸" width="130">
-            <template #default="{ row }">
-              <span class="mono" style="font-size: 11.5px">{{ (row.geometry?.bbox || []).join(' × ') }} mm</span>
-            </template>
-          </el-table-column>
-          <el-table-column label="预估" width="100">
-            <template #default="{ row }">
-              <span class="mono" style="font-size: 11.5px">
-                {{ row.print_jobs?.at(-1)?.est_weight_g }}g<br />{{ Math.round((row.print_jobs?.at(-1)?.est_time_sec || 0) / 60) }}min
-              </span>
-            </template>
-          </el-table-column>
-          <el-table-column label="操作" width="230">
-            <template #default="{ row }">
-              <el-button size="small" @click="openManifest(row)">清单</el-button>
-              <el-button size="small" @click="downloadModel(row)">模型</el-button>
-              <el-button v-if="row.self_filament && !row.filament_approved" size="small" type="warning"
-                         @click="filamentCheck(row, true)">耗材合格</el-button>
-              <el-button size="small" type="primary" :disabled="row.self_filament && !row.filament_approved"
-                         @click="printStart(row)">开始打印</el-button>
-            </template>
-          </el-table-column>
-        </el-table>
-        <el-empty v-if="!queues?.print_queue?.length" description="清单为空" :image-size="50" />
-      </div>
-
-      <!-- 打印中 / 打印机 / 返工 -->
-      <div class="card">
-        <h3 style="margin: 0 0 10px">打印中 <el-tag size="small" round>{{ queues?.printing?.length || 0 }}</el-tag></h3>
-        <div v-for="o in queues?.printing || []" :key="o.id" class="queue-item">
-          <b>O{{ o.id }} · {{ o.name }}</b>
-          <div class="muted" style="font-size: 12.5px">
-            {{ o.print_jobs?.at(-1)?.printer_id }} · 进度 {{ Math.round((o.print_jobs?.at(-1)?.progress || 0) * 100) }}%
-            · 预估 {{ Math.round((o.print_jobs?.at(-1)?.est_time_sec || 0) / 60) }}min
+        <div v-for="row in queues?.print_queue || []" :key="row.id" class="row-item">
+          <!-- 操作优先 -->
+          <div style="display: flex; gap: 6px; flex-wrap: wrap; order: 1">
+            <el-button size="small" type="primary" :disabled="row.self_filament && !row.filament_approved"
+                       @click="printStart(row)">开始打印</el-button>
+            <el-button size="small" @click="openManifest(row)">清单</el-button>
+            <el-button size="small" @click="downloadModel(row)">模型</el-button>
+            <el-button v-if="row.self_filament && !row.filament_approved" size="small" type="warning"
+                       @click="filamentCheck(row, true)">耗材合格</el-button>
           </div>
-          <div style="margin-top: 6px; display: flex; gap: 6px">
-            <el-button v-for="j in o.print_jobs.filter(x => x.status === 'printing')" :key="j.id"
-                       size="small" type="success" @click="printDone(o, j)">打印完成 #{{ j.seq }}</el-button>
-            <el-button v-for="j in o.print_jobs.filter(x => x.status === 'printing')" :key="'f' + j.id"
-                       size="small" type="danger" @click="printFail(j)">异常重排</el-button>
+          <!-- 信息：只留材料 -->
+          <div style="display: flex; align-items: center; gap: 10px; flex: 1; min-width: 200px; order: 0">
+            <span class="mono" style="font-size: 12.5px; color: var(--ink-soft)">O{{ row.id }}</span>
+            <span :style="{ display: 'inline-block', width: 12, height: 12, borderRadius: 3, background: row.color, border: '1px solid var(--line)' }" />
+            <b style="font-size: 13.5px">{{ materialOf(row) }}</b>
+            <el-tag v-if="row.self_filament" size="small" :type="row.filament_approved ? 'success' : 'warning'" effect="plain">
+              自备耗材{{ row.filament_approved ? '·已检' : '·待检' }}
+            </el-tag>
           </div>
         </div>
-        <div v-for="p in queues?.printers || []" :key="p.id" class="queue-item">
-          <b>{{ p.name }}</b>
-          <el-tag size="small" :type="p.status === 'idle' ? 'info' : 'warning'" style="margin-left: 6px">
+        <el-empty v-if="!queues?.print_queue?.length" description="清单为空" :image-size="46" />
+      </div>
+
+      <!-- 打印中：可手动填写时间 -->
+      <div class="card">
+        <h3 style="margin: 0 0 10px">打印中 <el-tag size="small" round>{{ queues?.printing?.length || 0 }}</el-tag></h3>
+        <div v-for="o in queues?.printing || []" :key="o.id" class="row-item" style="flex-direction: column; align-items: stretch">
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px">
+            <div>
+              <b>O{{ o.id }} · {{ o.name }}</b>
+              <div class="muted" style="font-size: 12.5px">
+                {{ o.print_jobs?.at(-1)?.printer_id }} · 开始 {{ o.print_jobs?.at(-1)?.started_at?.slice(0, 16) || '—' }}
+                · 预计 {{ Math.round((o.print_jobs?.at(-1)?.est_time_sec || 0) / 60) }}min
+                · 进度 {{ Math.round((o.print_jobs?.at(-1)?.progress || 0) * 100) }}%
+              </div>
+            </div>
+            <div style="display: flex; gap: 6px">
+              <el-button v-for="j in o.print_jobs.filter(x => x.status === 'printing')" :key="j.id"
+                         size="small" type="success" @click="printDone(o, j)">打印完成 #{{ j.seq }}</el-button>
+              <el-button v-for="j in o.print_jobs.filter(x => x.status === 'printing')" :key="'f' + j.id"
+                         size="small" type="danger" @click="printFail(j)">异常重排</el-button>
+            </div>
+          </div>
+
+          <!-- 手动填写时间 -->
+          <div v-for="j in o.print_jobs.filter(x => x.status === 'printing')" :key="'t' + j.id"
+               style="display: flex; gap: 8px; align-items: end; flex-wrap: wrap; margin-top: 8px;
+                      padding-top: 8px; border-top: 1px dashed var(--line)">
+            <div>
+              <div class="muted" style="font-size: 11.5px; margin-bottom: 2px">开始时间</div>
+              <el-input v-model="timeEdit[j.id].startedAt" size="small" style="width: 190px"
+                        placeholder="2026-10-29T14:05:00" />
+            </div>
+            <div>
+              <div class="muted" style="font-size: 11.5px; margin-bottom: 2px">预计时长（分钟）</div>
+              <el-input-number v-model="timeEdit[j.id].minutes" size="small" :min="1" :max="10080" :step="10"
+                               style="width: 130px" />
+            </div>
+            <el-button size="small" type="primary" @click="saveTime(j)">保存时间</el-button>
+            <span class="muted" style="font-size: 11.5px">
+              估算值只作参考，按设备实际填；进度条按「开始时间 + 预计时长」推算
+            </span>
+          </div>
+        </div>
+
+        <!-- 打印机 / 返工 -->
+        <div v-for="p in queues?.printers || []" :key="p.id" class="row-item">
+          <b style="flex: 1">{{ p.name }}</b>
+          <el-tag size="small" :type="p.status === 'idle' ? 'info' : 'warning'">
             {{ p.status === 'idle' ? '空闲' : '忙' }}
           </el-tag>
         </div>
-        <div v-for="o in queues?.rework || []" :key="o.id" class="queue-item">
-          <b>O{{ o.id }} · {{ o.name }}</b>
-          <div class="muted" style="font-size: 12.5px">
-            <el-tag size="small" :type="o.issues?.at(-1)?.type === 'MACHINE' ? 'warning' : 'info'">
-              {{ { PARAMETER: '参数问题', MACHINE: '设备问题', MODEL: '模型问题', MACHINE_LIMIT: '设备能力上限' }[o.issues?.at(-1)?.type] || '—' }}
-            </el-tag>
-            <span style="margin-left: 6px">{{ o.issues?.at(-1)?.description }}</span>
+        <div v-for="o in queues?.rework || []" :key="o.id" class="row-item">
+          <div style="flex: 1; min-width: 220px">
+            <b>O{{ o.id }} · {{ o.name }}</b>
+            <div class="muted" style="font-size: 12.5px">
+              <el-tag size="small" :type="o.issues?.at(-1)?.type === 'MACHINE' ? 'warning' : 'info'">
+                {{ { PARAMETER: '参数问题', MACHINE: '设备问题', MODEL: '模型问题', MACHINE_LIMIT: '设备能力上限' }[o.issues?.at(-1)?.type] || '—' }}
+              </el-tag>
+              <span style="margin-left: 6px">{{ o.issues?.at(-1)?.description }}</span>
+            </div>
           </div>
-          <div style="margin-top: 6px; display: flex; gap: 6px">
+          <div style="display: flex; gap: 6px">
             <el-button v-if="o.issues?.at(-1)?.type === 'MACHINE'" size="small" type="warning" @click="requeueReprint(o)">
               设备已处理，重新入清单
             </el-button>
             <el-button v-else size="small" @click="router.push(`/orders/${o.id}`)">查看（等用户处理）</el-button>
           </div>
         </div>
-        <el-empty v-if="!queues?.printing?.length && !queues?.rework?.length" description="无进行中的打印" :image-size="50" />
+        <el-empty v-if="!queues?.printing?.length && !queues?.rework?.length" description="无进行中的打印" :image-size="46" />
       </div>
 
       <!-- Val3 验收 -->
       <div class="card">
         <h3 style="margin: 0 0 10px">Val3 实物验收 <el-tag size="small" round>{{ queues?.val3_pending?.length || 0 }}</el-tag></h3>
-        <div v-for="o in queues?.val3_pending || []" :key="o.id" class="queue-item">
-          <b>O{{ o.id }} · {{ o.name }}</b>
-          <div class="muted" style="font-size: 12.5px">
-            {{ o.user }} · {{ o.params?.strength_name || '' }} · 实际耗材 {{ o.print_jobs?.at(-1)?.actual_weight_g }}g
+        <div v-for="o in queues?.val3_pending || []" :key="o.id" class="row-item">
+          <div style="flex: 1; min-width: 220px">
+            <b>O{{ o.id }} · {{ o.name }}</b>
+            <div class="muted" style="font-size: 12.5px">
+              {{ o.user }} · {{ o.params?.strength_name || '' }} · 实际耗材 {{ o.print_jobs?.at(-1)?.actual_weight_g }}g
+            </div>
           </div>
-          <div style="margin-top: 6px; display: flex; gap: 6px">
+          <div style="display: flex; gap: 6px">
             <el-button size="small" type="success" @click="val3Pass(o)">验收通过</el-button>
             <el-button size="small" type="danger" @click="val3Fail(o)">不通过（判定责任）</el-button>
           </div>
         </div>
-        <el-empty v-if="!queues?.val3_pending?.length" description="无待验收实物" :image-size="50" />
+        <el-empty v-if="!queues?.val3_pending?.length" description="无待验收实物" :image-size="46" />
       </div>
 
       <!-- 等待用户填写打印需求 -->
       <div class="card">
         <h3 style="margin: 0 0 10px">待填打印需求 <el-tag size="small" round>{{ queues?.print_config?.length || 0 }}</el-tag></h3>
-        <div v-for="o in queues?.print_config || []" :key="o.id" class="queue-item">
-          <b>O{{ o.id }} · {{ o.name }}</b>
-          <div class="muted" style="font-size: 12.5px">
-            {{ o.user }} · Val1 {{ o.val1?.result }}，等待用户选材料 / 强度 / 参数
+        <div v-for="o in queues?.print_config || []" :key="o.id" class="row-item">
+          <div style="flex: 1">
+            <b>O{{ o.id }} · {{ o.name }}</b>
+            <div class="muted" style="font-size: 12.5px">
+              {{ o.user }} · Val1 {{ o.val1?.result }}，等待用户选材料 / 强度 / 参数
+            </div>
           </div>
         </div>
-        <el-empty v-if="!queues?.print_config?.length" description="无等待中的需求" :image-size="50" />
+        <el-empty v-if="!queues?.print_config?.length" description="无等待中的需求" :image-size="46" />
       </div>
     </div>
 
@@ -330,7 +370,7 @@ onMounted(load)
         <el-descriptions :column="2" size="small" border>
           <el-descriptions-item label="需求">{{ manifestRow.name }}</el-descriptions-item>
           <el-descriptions-item label="用户">{{ manifestRow.user }}</el-descriptions-item>
-          <el-descriptions-item label="材料">{{ app.materials.find(m => m.id === manifestRow.material_id)?.name }}</el-descriptions-item>
+          <el-descriptions-item label="材料">{{ materialOf(manifestRow) }}</el-descriptions-item>
           <el-descriptions-item label="颜色">{{ manifestRow.color }}</el-descriptions-item>
           <el-descriptions-item label="强度">{{ manifestRow.params?.strength_name }}</el-descriptions-item>
           <el-descriptions-item label="层高">{{ manifestRow.params?.layer_height }} mm</el-descriptions-item>
@@ -400,5 +440,8 @@ onMounted(load)
 </template>
 
 <style scoped>
-.queue-item { border: 1px solid var(--line); border-radius: 8px; padding: 10px; margin-bottom: 10px; }
+.row-item {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  border: 1px solid var(--line); border-radius: 8px; padding: 10px; margin-bottom: 8px;
+}
 </style>

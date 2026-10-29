@@ -98,7 +98,8 @@ function gotoWorkspace() {
     <template v-else-if="['draft', 'modeling', 'val1_failed'].includes(order.status)">
       <div style="display: flex; gap: 12px; margin-bottom: 14px; align-items: center">
         <el-tag type="success" effect="plain" round>需求 O{{ order.id }} · {{ order.name }}</el-tag>
-        <span class="muted" style="font-size: 12.5px">没有现成模型？去 <router-link to="/ai">AI 建模</router-link> 生成后自动填充</span>
+        <span v-if="app.flow.ai_modeling" class="muted" style="font-size: 12.5px">没有现成模型？去 <router-link to="/ai">AI 建模</router-link> 生成后自动填充</span>
+        <span v-else class="muted" style="font-size: 12.5px">没有现成模型？可先在其他软件里建模，导出 STL / OBJ 后上传</span>
       </div>
 
       <el-tabs v-model="tab" type="border-card">

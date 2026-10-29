@@ -28,7 +28,7 @@ DEFAULT_TEMPLATE: dict = {
         "color_change_fee": 1.5,        # 换料补偿（元/次）
         "maintenance_per_job": 0.6,     # 维护费：每任务固定摊分（元）
         "maintenance_per_gram": 0.004,  # 维护费：每克摊分（元/g）
-        "machine_reprint_rate": 0.5,    # 设备问题重打按正常耗材费比例（§10.2，当前 50%）
+        "machine_reprint_rate": 1.0,    # 设备问题重打按正常耗材费比例（2026-10 起取消半价：一律 100%）
         "api_prices": {                 # API 单价（元）
             "deepseek_input_per_1k": 0.001,   # DeepSeek 输入 token 每 1k
             "deepseek_output_per_1k": 0.002,  # DeepSeek 输出 token 每 1k

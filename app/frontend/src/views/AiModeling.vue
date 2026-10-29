@@ -4,14 +4,19 @@ import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { api } from '@/api'
+import { useAppStore } from '@/stores'
 
+const app = useAppStore()
 const router = useRouter()
+// AI 建模入口暂时关闭（meta.flow.ai_modeling=false）；后端接口与计费逻辑保留
+const aiEnabled = () => !!app.flow.ai_modeling
 const desc = ref('给我生成一个手机支架，尺寸 8cm')
 const generating = ref(false)
 const result = ref(null)
 const orderId = ref(null)
 
 async function generate() {
+  if (!aiEnabled()) return ElMessage.warning('AI 建模入口暂时关闭，请上传自己做的 STL / OBJ 模型')
   if (!desc.value.trim()) return
   generating.value = true
   try {
@@ -37,6 +42,9 @@ async function fillToOrder() {
   <div class="page" style="max-width: 860px">
     <h1 class="page-title">AI 辅助建模</h1>
     <p class="page-sub">独立功能（§14）· Tripo AI SDK 按用量计费 · 生成后自动打印体检，确认后下载或自动填充到上传环节</p>
+    <el-alert v-if="!aiEnabled()" type="warning" :closable="false" show-icon style="margin-bottom: 14px"
+              title="AI 建模入口暂时关闭"
+              description="当前版本请自行建模后上传 STL / OBJ（可直接在「创建需求 → 上传模型」完成）。" />
 
     <div class="card">
       <el-input v-model="desc" type="textarea" :rows="3" placeholder="描述想要的模型，如：一个笔筒 / 机甲小人 / 手机支架…" />

@@ -38,6 +38,7 @@ def bootstrap(db: Annotated[Session, Depends(get_db)]):
             "val2_review": False,      # Val2 切片核验已暂缓
             "val1_sendback": False,    # Val1 不再自动退回，只标记 + 转人工
             "billing_visible": False,  # 收费/费用信息暂时隐去
+            "ai_modeling": False,      # AI 建模入口暂时关闭（后端接口保留）
         },
     }
 
