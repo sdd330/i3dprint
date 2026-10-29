@@ -17,7 +17,7 @@ from ..core.security import client_ip, require_permission, write_audit
 from ..models import Campaign, Issue, Order, PrintJob, Review, User
 from ..services.config_service import clone_config_for_campaign, get_activity_config
 from ..services.cost import append_cost, calc_filament_fee, settle_order_costs
-from ..services.print_service import PRINTERS, allocate, find_idle_printer, release
+from ..services.print_service import allocate, find_idle_printer, printer_snapshot, release
 from ..services.state_machine import StateError, transition, transition_campaign
 
 router = APIRouter(prefix="/admin")
@@ -41,6 +41,9 @@ def _get_order(db: Session, order_id: int) -> Order:
 
 @router.get("/queues")
 def queues(db: DbDep, user: Annotated[User, Depends(require_permission("order:view_all"))]):
+    campaign = db.query(Campaign).order_by(Campaign.id.desc()).first()
+    config = get_activity_config(db, campaign) if campaign else {}
+
     def brief(o: Order) -> dict:
         jobs = sorted(o.print_jobs, key=lambda j: j.id)
         return {
@@ -66,7 +69,7 @@ def queues(db: DbDep, user: Annotated[User, Depends(require_permission("order:vi
         "printing": [brief(o) for o in db.query(Order).filter_by(status="printing").all()],
         "val3_pending": [brief(o) for o in db.query(Order).filter_by(status="val3_pending").all()],
         "rework": [brief(o) for o in db.query(Order).filter_by(status="rework").all()],
-        "printers": PRINTERS,
+        "printers": printer_snapshot(config),
     }
 
 
@@ -155,7 +158,9 @@ def print_start(job_id: int, body: PrintStartIn, db: DbDep,
         raise HTTPException(status_code=409, detail="打印任务不在队列中")
     if order.self_filament and not order.filament_approved:
         raise HTTPException(status_code=409, detail="自备耗材未检验合格（§16.3）")
-    printer = next((p for p in PRINTERS if p["id"] == body.printer_id), None) if body.printer_id else find_idle_printer()
+    config = get_activity_config(db, order.campaign)
+    printer = (next((p for p in printer_snapshot(config) if p["id"] == body.printer_id), None)
+               if body.printer_id else find_idle_printer(config))
     if not printer or printer["status"] != "idle":
         raise HTTPException(status_code=409, detail="没有空闲打印机")
     allocate(job, printer)

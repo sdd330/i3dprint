@@ -50,6 +50,12 @@ const billingVisible = computed(() => app.billingVisible)
 const val1 = computed(() => order.value?.val1)
 const bbox = computed(() => order.value?.geometry?.bbox || val1.value?.stats?.bbox)
 const volume = computed(() => val1.value?.stats?.volume_cm3)
+// 尺寸提示：最大边 < 10mm 通常是导出单位不是毫米（×100 即可，见摆放页「放大 100 倍」）
+const tinySize = computed(() => {
+  const b = bbox.value
+  if (!b) return false
+  return Math.max(...b) < 10
+})
 
 watch(() => form.material, (m) => {
   const mat = materials.value.find(x => x.id === m)
@@ -221,6 +227,9 @@ onMounted(load)
             </el-descriptions-item>
             <el-descriptions-item label="自备耗材">{{ form.selfFilament ? '是（待检验）' : '平台耗材' }}</el-descriptions-item>
           </el-descriptions>
+          <el-alert v-if="tinySize" type="warning" :closable="false" show-icon style="margin-top: 8px"
+                    title="模型尺寸偏小，可能不是毫米单位"
+                    description="请返回摆放页点「放大 100 倍」再提交，否则打印出来只有几毫米。" />
           <div class="muted" style="font-size: 12px; margin-top: 8px">
             模型文件与摆放姿态会一起附在清单里，负责人据此在 Bambu Studio 中切片与打印。
           </div>

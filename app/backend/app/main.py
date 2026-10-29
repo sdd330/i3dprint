@@ -40,6 +40,7 @@ def health():
 # 路由
 from .routers import admin, ai, auth, config, meta, orders, qa
 from .routers import settings as settings_router
+from .routers.printers import router as printer_router
 
 app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
 app.include_router(meta.router, prefix="/api/meta", tags=["meta"])
@@ -49,3 +50,4 @@ app.include_router(config.router, prefix="/api", tags=["config"])
 app.include_router(qa.router, prefix="/api/qa", tags=["qa"])
 app.include_router(ai.router, prefix="/api/ai", tags=["ai"])
 app.include_router(settings_router.router, prefix="/api", tags=["settings"])
+app.include_router(printer_router)  # /api/printers（配置中心维护设备清单）

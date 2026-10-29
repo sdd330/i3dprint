@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from ..core.database import get_db
 from ..models import Campaign
 from ..services.config_service import get_activity_config, get_sources
-from ..services.print_requirement import STRENGTH_TIERS
+from ..services.print_requirement import strength_tiers
 
 router = APIRouter()
 
@@ -26,12 +26,12 @@ def bootstrap(db: Annotated[Session, Depends(get_db)]):
             "config_sources": get_sources(campaign) if campaign else {},
         } if campaign else None,
         "materials": cfg.get("fee", {}).get("materials", []),
-        "strength_tiers": STRENGTH_TIERS,  # 打印需求「强度」档（映射到工艺参数）
+        "strength_tiers": strength_tiers(cfg),  # 打印需求「强度」档（配置中心可编辑）
         "presets": cfg.get("presets", []),
         "val1": cfg.get("val1", {}),
         "compliance": cfg.get("compliance", {}),
         "fee": cfg.get("fee", {}),
-        "printers": _printers_out(),
+        "printers": _printers_out(cfg),
         # 能力开关（前端据此隐藏入口，后端逻辑保留可随时恢复）
         "flow": {
             "online_slicing": False,   # 在线切片（OrcaSlicer）已暂缓
@@ -43,6 +43,7 @@ def bootstrap(db: Annotated[Session, Depends(get_db)]):
     }
 
 
-def _printers_out():
-    from ..services.print_service import PRINTERS
-    return PRINTERS
+def _printers_out(cfg: dict | None = None):
+    """设备清单来自活动配置（配置中心「打印/设备」可增删），忙闲状态取自运行时。"""
+    from ..services.print_service import printer_snapshot
+    return printer_snapshot(cfg)

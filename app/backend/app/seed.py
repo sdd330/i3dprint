@@ -43,7 +43,27 @@ DEFAULT_TEMPLATE_DATA = {
         "reprint_rate_machine": 1.0,  # 设备问题重打（2026-10 取消半价）
         "queue_strategy": "fifo",     # 队列调度策略（§8.2）
         "anomaly_requeue": True,      # 中间环节异常→重新排队（§16.4）
+        # 打印机清单（可增删/启停；忙闲状态由 print_service 运行时维护）
+        "printers": [
+            {"id": "x1c-01", "name": "X1C-01", "model": "Bambu Lab X1-Carbon", "enabled": True},
+            {"id": "x1c-02", "name": "X1C-02", "model": "Bambu Lab X1-Carbon", "enabled": True},
+        ],
     },
+    # 强度档（打印需求页用户可选；映射为工艺参数，2026-10 起由配置中心维护）
+    "strength_tiers": [
+        {"id": "light", "name": "轻量", "icon": "🍃", "desc": "展示摆件、不承力：耗材省、速度快",
+         "layer_height": 0.24, "wall_loops": 2, "infill_density": 10, "top_shell_layers": 3,
+         "bottom_shell_layers": 3, "infill_pattern": "grid"},
+        {"id": "standard", "name": "标准", "icon": "⚖️", "desc": "日常推荐：质量与强度均衡",
+         "layer_height": 0.20, "wall_loops": 2, "infill_density": 20, "top_shell_layers": 4,
+         "bottom_shell_layers": 3, "infill_pattern": "grid"},
+        {"id": "strong", "name": "坚固", "icon": "🏗️", "desc": "功能件、受力件：更厚壁、更高填充",
+         "layer_height": 0.20, "wall_loops": 3, "infill_density": 40, "top_shell_layers": 5,
+         "bottom_shell_layers": 4, "infill_pattern": "gyroid"},
+        {"id": "ultra", "name": "超坚固", "icon": "🛡️", "desc": "承力结构件：耗材与时间显著增加",
+         "layer_height": 0.16, "wall_loops": 4, "infill_density": 60, "top_shell_layers": 6,
+         "bottom_shell_layers": 5, "infill_pattern": "cubic"},
+    ],
     "compliance": {
         "list": ["管制刀具/武器类模型", "危险品（易燃易爆等）", "明显违规用途（作弊工具等）", "其他平台规定禁止的内容"],
         "statement": "最终解释权归 FRC Team 6940 所有，任何人不得用作商业用途。",
@@ -112,11 +132,43 @@ def seed(db: Session):
         for code, cfg in DEFAULT_ROLES.items():
             db.add(Role(code=code, name=cfg["name"], permissions=cfg["permissions"], builtin=True))
         db.commit()
+    else:
+        # 老库：代码新增权限点时，给内置角色补齐（不删除管理员手动调整过的权限）
+        changed = False
+        for code, cfg in DEFAULT_ROLES.items():
+            role = db.query(Role).filter_by(code=code, builtin=True).first()
+            if not role:
+                continue
+            current = list(role.permissions or [])
+            missing = [p for p in cfg["permissions"] if p not in current]
+            if missing:
+                role.permissions = current + missing
+                changed = True
+        if changed:
+            db.commit()
 
-    # 默认活动模板
-    if db.query(ConfigTemplate).count() == 0:
+    # 默认活动模板（老库补齐新增分类/子键；已有值一律保留）
+    def _fill_missing(target: dict, defaults: dict) -> bool:
+        changed = False
+        for k, v in defaults.items():
+            if k not in target:
+                import copy as _copy
+                target[k] = _copy.deepcopy(v)
+                changed = True
+            elif isinstance(v, dict) and isinstance(target.get(k), dict):
+                changed |= _fill_missing(target[k], v)
+        return changed
+
+    tpl = db.query(ConfigTemplate).filter_by(is_default=True).first()
+    if tpl is None:
         db.add(ConfigTemplate(name="默认活动模板", is_default=True, data=DEFAULT_TEMPLATE_DATA))
         db.commit()
+    else:
+        import copy as _copy
+        data = _copy.deepcopy(tpl.data or {})
+        if _fill_missing(data, DEFAULT_TEMPLATE_DATA):
+            tpl.data = data
+            db.commit()
 
     # 示例用户
     if db.query(User).count() == 0:

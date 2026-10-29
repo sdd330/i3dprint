@@ -7,9 +7,9 @@ from sqlalchemy.orm import Session
 from ..core.database import get_db
 from ..core.security import CurrentUser, StaffUser, require_permissions
 from ..models.entities import User
-from ..models.entities import Campaign, Printer, QaTicket
+from ..models.entities import Campaign, QaTicket
 from ..services.ai import ai_generate
-from ..services.config_center import get_config
+from ..services.config_service import get_activity_config
 from ..services.qa import ask_qa
 
 ai_router = APIRouter(prefix="/api/ai", tags=["ai"])
@@ -20,7 +20,7 @@ def generate(payload: dict, user: User = Depends(require_permissions("ai:use")),
              db: Session = Depends(get_db)):
     """AI 建模：描述/尺寸 → 生成模型 + 就地体检（§14.1/§14.2）。按 Tripo 用量计费（§14.3）。"""
     campaign = db.query(Campaign).order_by(Campaign.id.desc()).first()
-    cfg = get_config(db, campaign)
+    cfg = get_activity_config(db, campaign) if campaign else {}
     result = ai_generate(db, payload.get("description", ""), payload.get("sizeCm", 8), cfg)
     if result.get("error"):
         raise HTTPException(502, result["error"])
@@ -35,7 +35,7 @@ def ask(payload: dict, user: User = Depends(require_permissions("qa:ask")),
         db: Session = Depends(get_db)):
     """站娘问答：知识库命中不产生 API 费用；未命中走 DeepSeek，按 token 计费（§11.3）。"""
     campaign = db.query(Campaign).order_by(Campaign.id.desc()).first()
-    cfg = get_config(db, campaign)
+    cfg = get_activity_config(db, campaign) if campaign else {}
     result = ask_qa(db, payload.get("question", ""), payload.get("step", ""), cfg)
     return result
 
@@ -94,5 +94,8 @@ printer_router = APIRouter(prefix="/api", tags=["printers"])
 @printer_router.get("/printers")
 def list_printers(user: User = Depends(require_permissions("printer:read")),
                   db: Session = Depends(get_db)):
-    return {"printers": [{"id": p.id, "name": p.name, "model": p.model, "status": p.status,
-                          "buildVolume": p.build_volume} for p in db.query(Printer).all()]}
+    """设备清单来自活动配置（配置中心可增删）；忙闲状态取自运行时。"""
+    from ..services.print_service import printer_snapshot
+    campaign = db.query(Campaign).order_by(Campaign.id.desc()).first()
+    cfg = get_activity_config(db, campaign) if campaign else {}
+    return {"printers": printer_snapshot(cfg)}

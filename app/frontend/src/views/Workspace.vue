@@ -176,6 +176,12 @@ function fitView() {
 }
 
 // —— 摆放操作 ——
+// 尺寸提示（2026-10 用户需求）：模型过小通常是导出单位不是毫米（如米），
+// 提示并支持一键放大 100 倍；过大的模型提示缩回平台范围内。
+const SIZE_TINY_MM = 10        // 最大边 < 10mm 视为"疑似不是毫米单位"
+const SIZE_SCALE_FACTOR = 100  // 一键放大倍数（按用户要求：100 倍即可）
+const sizeHint = ref(null)     // { kind: 'tiny'|'huge', maxDim, target }
+
 const mode = ref('translate')   // translate | rotate | scale
 const bedLock = ref(true)       // 吸底锁定：拖动时只允许 XZ 移动并贴平台
 const info = reactive({ bbox: null, rotation: [0, 0, 0], scaleText: '1 / 1 / 1', count: 1, oversize: false })
@@ -261,6 +267,7 @@ function scaleToSize() {
   if (bedLock.value) sitOnBed()
   clampToBed()
   updateInfo()
+  fitView()
   ElMessage.success(`已${dimTarget.uniform ? '等比' : '沿 ' + dimTarget.axis.toUpperCase() + ' 轴'}缩放到 ${dimTarget.size}mm（当前 ${meshBBox().join(' × ')}mm）`)
 }
 
@@ -329,6 +336,44 @@ function updateInfo() {
   const { x, y, z } = modelGroup.scale
   info.scaleText = `${round1(x)} / ${round1(y)} / ${round1(z)}`
   info.count = gridN.value ** 2
+  updateSizeHint()
+}
+
+// 尺寸提示：过小 → 建议 ×100；超平台 → 建议缩回范围内
+function updateSizeHint() {
+  const b = info.bbox
+  if (!b) { sizeHint.value = null; return }
+  const maxDim = Math.max(b[0], b[1], b[2])
+  if (maxDim > 0 && maxDim < SIZE_TINY_MM) {
+    sizeHint.value = { kind: 'tiny', maxDim: round1(maxDim), target: round1(maxDim * SIZE_SCALE_FACTOR) }
+  } else if (info.oversize) {
+    sizeHint.value = { kind: 'huge', maxDim: round1(maxDim), target: round1(maxDim) }
+  } else {
+    sizeHint.value = null
+  }
+}
+
+// 一键等比缩放（×100 或缩放到平台内）
+function scaleByFactor(factor, label) {
+  modelGroup.scale.multiplyScalar(factor)
+  if (bedLock.value) sitOnBed()
+  clampToBed()
+  updateInfo()
+  fitView()   // 缩放后自动重新框住模型（否则 ×100 会直接穿进模型内部）
+  ElMessage.success(`${label} → 当前 ${info.bbox.join(' × ')}mm`)
+}
+
+function dismissSizeHint() {
+  sizeHint.value = null
+}
+
+// 放大到平台内（最大边占 200mm，留出边距）
+function fitToBuildVolume() {
+  const b = info.bbox
+  if (!b) return
+  const maxDim = Math.max(b[0], b[1], b[2])
+  if (maxDim <= 0) return
+  scaleByFactor(round1((BUILD * 0.8) / maxDim * 100) / 100, '按平台适配缩放')
 }
 
 // —— 指针交互：直接拖模型（XZ 平面） ——
@@ -453,6 +498,12 @@ onBeforeUnmount(() => {
         打印平台 <b>256×256×256mm</b><br />
         <span class="muted">按住模型直接拖动 · 手柄调整 · 空白处拖拽转视角 · 滚轮缩放视角</span><br />
         <span class="muted">快捷键：<b>G</b> 移动 / <b>R</b> 旋转 / <b>S</b> 缩放 / <b>F</b> 聚焦</span>
+        <div v-if="info.bbox" class="mono" style="margin-top: 2px"
+             :style="{ color: sizeHint ? '#b45309' : 'var(--ink-soft)' }">
+          当前尺寸：{{ info.bbox.join(' × ') }} mm
+          <span v-if="sizeHint?.kind === 'tiny'">（偏小，疑似单位不是毫米）</span>
+          <span v-else-if="sizeHint?.kind === 'huge'">（超出平台）</span>
+        </div>
       </div>
 
       <!-- 模式切换悬浮条 -->
@@ -483,6 +534,23 @@ onBeforeUnmount(() => {
           {{ info.oversize ? '（超出平台，请缩小）' : '' }}
         </div>
         <div class="mono muted" style="font-size: 12px">角度：{{ info.rotation.join('° ') }}° · 缩放 ×{{ info.scaleText }} · {{ info.count }} 个</div>
+      </div>
+
+      <!-- 尺寸提示（疑似单位异常 / 超出平台） -->
+      <el-alert v-if="sizeHint?.kind === 'tiny'" type="warning" :closable="false" show-icon
+                title="尺寸偏小，可能不是毫米单位"
+                :description="`当前最大边仅 ${sizeHint.maxDim}mm。若是按米/英寸导出，可一键放大 ${SIZE_SCALE_FACTOR} 倍 → ${sizeHint.target}mm`" />
+      <div v-if="sizeHint?.kind === 'tiny'" style="display: flex; gap: 6px">
+        <el-button size="small" type="primary" @click="scaleByFactor(SIZE_SCALE_FACTOR, `放大 ${SIZE_SCALE_FACTOR} 倍`)">
+          放大 {{ SIZE_SCALE_FACTOR }} 倍
+        </el-button>
+        <el-button size="small" @click="dismissSizeHint">忽略</el-button>
+      </div>
+      <el-alert v-else-if="sizeHint?.kind === 'huge'" type="error" :closable="false" show-icon
+                title="超出打印平台范围"
+                :description="`当前最大边 ${sizeHint.maxDim}mm，平台为 256mm；可一键等比缩放到平台内`" />
+      <div v-if="sizeHint?.kind === 'huge'" style="display: flex; gap: 6px">
+        <el-button size="small" type="primary" @click="fitToBuildVolume">缩放到平台内</el-button>
       </div>
 
       <!-- 快速缩放 -->

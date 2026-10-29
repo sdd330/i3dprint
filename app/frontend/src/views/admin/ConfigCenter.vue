@@ -9,7 +9,8 @@ const CATS = [
   { key: 'activity', name: '活动参数' },
   { key: 'fee', name: '费用参数' },
   { key: 'val1', name: 'Val1 阈值' },
-  { key: 'presets', name: '打印参数档' },
+  { key: 'strength_tiers', name: '强度档（打印需求）' },
+  { key: 'presets', name: '旧参数档（暂缓）' },
   { key: 'print', name: '打印/设备' },
   { key: 'compliance', name: '合规配置' },
   { key: 'qa', name: '站娘配置' },
@@ -28,7 +29,8 @@ const f = reactive({
          reprint_rate: {}, api: { deepseek_input_per_mtok: 2, deepseek_output_per_mtok: 8, tripo_per_point: 0.1 } },
   val1: { build_volume: { x: 256, y: 256, z: 256 }, wall_min_hard: 0.8, wall_min_soft: 1.2, overhang_warn: 30, overhang_hard: 55 },
   presets: [],
-  print: { reprint_rate_machine: 0.5, queue_strategy: 'fifo', anomaly_requeue: true },
+  strength_tiers: [],
+  print: { reprint_rate_machine: 1.0, queue_strategy: 'fifo', anomaly_requeue: true, printers: [] },
   compliance: { list: [], statement: '', pickup_location: '', pickup_window: '', contacts: [] },
   qa: { system_prompt: '', filter_words: [] },
 })
@@ -52,7 +54,8 @@ function syncForm() {
             maintenance: { ...(d.fee?.maintenance || {}) }, api: { ...(d.fee?.api || {}) } }
   f.val1 = { ...f.val1, ...(d.val1 || {}), build_volume: { ...(d.val1?.build_volume || f.val1.build_volume) } }
   f.presets = JSON.parse(JSON.stringify(d.presets || []))
-  f.print = { ...f.print, ...(d.print || {}) }
+  f.strength_tiers = JSON.parse(JSON.stringify(d.strength_tiers || []))
+  f.print = { ...f.print, ...(d.print || {}), printers: JSON.parse(JSON.stringify(d.print?.printers || [])) }
   f.compliance = { ...f.compliance, ...(d.compliance || {}), contacts: JSON.parse(JSON.stringify(d.compliance?.contacts || [])) }
   f.qa = { ...f.qa, ...(d.qa || {}) }
 }
@@ -67,6 +70,8 @@ function collect() {
   if (active.value === 'qa') c.filter_words = filterWords.value.split('\n').map(s => s.trim()).filter(Boolean)
   if (active.value === 'fee') c.materials = materials.value
   if (active.value === 'presets') c.presets = presets.value
+  if (active.value === 'strength_tiers') c.strength_tiers = strengthTiers.value
+  if (active.value === 'print') c.printers = printers.value
   return JSON.parse(JSON.stringify(c))
 }
 
@@ -82,18 +87,27 @@ async function save() {
 // —— 表格编辑辅助（材料 / 档位 / 联系人）——
 const materials = ref([])
 const presets = ref([])
+const strengthTiers = ref([])
+const printers = ref([])
 const complianceList = ref('')
 const filterWords = ref('')
 const CONTACT_COLORS = ['#E8602C', '#2B6CB0', '#2F855A', '#9F7AEA', '#D69E2E', '#38B2AC']
 watch(active, (k) => {
   if (k === 'fee') materials.value = JSON.parse(JSON.stringify(f.fee.materials || []))
   if (k === 'presets') presets.value = JSON.parse(JSON.stringify(f.presets || []))
+  if (k === 'strength_tiers') strengthTiers.value = JSON.parse(JSON.stringify(f.strength_tiers || []))
+  if (k === 'print') printers.value = JSON.parse(JSON.stringify(f.print.printers || []))
   if (k === 'compliance') {
     complianceList.value = (f.compliance.list || []).join('\n')
   }
   if (k === 'qa') filterWords.value = (f.qa.filter_words || []).join('\n')
 })
 const addRow = (list) => list.push({})
+// 新增打印机：编号按现有数量顺延，默认启用
+function addPrinter() {
+  const n = printers.value.length + 1
+  printers.value.push({ id: `x1c-0${n}`, name: `X1C-0${n}`, model: 'Bambu Lab X1-Carbon', enabled: true })
+}
 const delRow = (list, i) => list.splice(i, 1)
 
 onMounted(load)
@@ -223,7 +237,60 @@ onMounted(load)
             </el-form-item>
           </el-form>
 
-          <!-- ④ 打印参数档 -->
+          <!-- ④ 强度档（打印需求页展示给用户，直接决定工艺参数） -->
+          <div v-else-if="active === 'strength_tiers'">
+            <el-alert type="info" :closable="false" show-icon style="margin-bottom: 10px"
+                      title="这一组就是「打印需求」页里学生看到的强度选项"
+                      description="学生选强度 → 系统按此处的壁厚圈数 / 填充率 / 层高 / 顶底实心层 / 填充图案生成工艺参数，再交给执行打印的人。可增删档位、改名称与图标。" />
+            <el-table :data="strengthTiers" size="small" border>
+              <el-table-column label="ID" width="90">
+                <template #default="{ row }"><el-input v-model="row.id" size="small" placeholder="light" /></template>
+              </el-table-column>
+              <el-table-column label="名称" width="100">
+                <template #default="{ row }"><el-input v-model="row.name" size="small" placeholder="轻量" /></template>
+              </el-table-column>
+              <el-table-column label="图标" width="70">
+                <template #default="{ row }"><el-input v-model="row.icon" size="small" /></template>
+              </el-table-column>
+              <el-table-column label="说明">
+                <template #default="{ row }"><el-input v-model="row.desc" size="small" /></template>
+              </el-table-column>
+              <el-table-column label="层高(mm)" width="100">
+                <template #default="{ row }"><el-input-number v-model="row.layer_height" size="small" :min="0.04" :max="0.5" :step="0.04" :controls="false" /></template>
+              </el-table-column>
+              <el-table-column label="壁厚圈数" width="95">
+                <template #default="{ row }"><el-input-number v-model="row.wall_loops" size="small" :min="1" :max="8" :controls="false" /></template>
+              </el-table-column>
+              <el-table-column label="填充(%)" width="90">
+                <template #default="{ row }"><el-input-number v-model="row.infill_density" size="small" :min="0" :max="100" :step="5" :controls="false" /></template>
+              </el-table-column>
+              <el-table-column label="顶/底实心层" width="120">
+                <template #default="{ row }">
+                  <div style="display: flex; gap: 4px">
+                    <el-input-number v-model="row.top_shell_layers" size="small" :min="0" :max="12" :controls="false" style="width: 52px" />
+                    <el-input-number v-model="row.bottom_shell_layers" size="small" :min="0" :max="12" :controls="false" style="width: 52px" />
+                  </div>
+                </template>
+              </el-table-column>
+              <el-table-column label="填充图案" width="120">
+                <template #default="{ row }">
+                  <el-select v-model="row.infill_pattern" size="small">
+                    <el-option v-for="p in ['grid', 'gyroid', 'cubic', 'lines', 'triangles', 'adaptive cubic']" :key="p" :value="p" :label="p" />
+                  </el-select>
+                </template>
+              </el-table-column>
+              <el-table-column width="60">
+                <template #default="{ $index }"><el-button link type="danger" @click="delRow(strengthTiers, $index)">删</el-button></template>
+              </el-table-column>
+            </el-table>
+            <el-button size="small" style="margin-top: 8px"
+                       @click="addRow(strengthTiers)">+ 添加强度档</el-button>
+            <div class="muted" style="font-size: 12px; margin-top: 6px">
+              提示：至少保留一个档位；学生端「打印需求」页直接读取这里的配置（保存后即时生效）。
+            </div>
+          </div>
+
+          <!-- ④b 旧打印参数档（在线切片暂缓，当前不参与主链） -->
           <div v-else-if="active === 'presets'">
             <div style="font-weight: 600; margin-bottom: 6px">标准档位（参考 OrcaSlicer 标准配置，§4.2）</div>
             <el-table :data="presets" size="small" border>
@@ -274,6 +341,32 @@ onMounted(load)
               <el-switch v-model="f.print.anomaly_requeue" />
             </el-form-item>
           </el-form>
+
+          <template v-if="active === 'print'">
+            <div style="font-weight: 600; margin: 18px 0 6px">打印机清单（决定可同时开机数 / 排产）</div>
+            <el-table :data="printers" size="small" border style="max-width: 780px">
+              <el-table-column label="编号 (id)" width="140">
+                <template #default="{ row }"><el-input v-model="row.id" size="small" placeholder="x1c-01" /></template>
+              </el-table-column>
+              <el-table-column label="名称" width="150">
+                <template #default="{ row }"><el-input v-model="row.name" size="small" placeholder="X1C-01" /></template>
+              </el-table-column>
+              <el-table-column label="型号">
+                <template #default="{ row }"><el-input v-model="row.model" size="small" placeholder="Bambu Lab X1-Carbon" /></template>
+              </el-table-column>
+              <el-table-column label="启用" width="80">
+                <template #default="{ row }"><el-switch v-model="row.enabled" /></template>
+              </el-table-column>
+              <el-table-column width="60">
+                <template #default="{ $index }"><el-button link type="danger" @click="delRow(printers, $index)">删</el-button></template>
+              </el-table-column>
+            </el-table>
+            <el-button size="small" style="margin-top: 8px" @click="addPrinter">+ 添加打印机</el-button>
+            <div class="muted" style="font-size: 12px; margin-top: 6px">
+              编号设得稳定一点（如 x1c-01），已分配的历史任务按编号关联；停用某台不影响历史记录。
+              打印范围统一取上面「Val1 阈值」里的设备打印范围。
+            </div>
+          </template>
 
           <!-- ⑥ 合规配置 -->
           <div v-else-if="active === 'compliance'">

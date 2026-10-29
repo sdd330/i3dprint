@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import math
 
-# 强度档：面向校园用户的一键选择（内部映射为工艺参数）
+# 强度档默认值：配置中心缺省时的兜底（活动配置 `strength_tiers` 存在时以配置为准）
 # 字段名与 OrcaSlicer / AdvancedParamsForm 一致，便于执行人直接录入切片器
 STRENGTH_TIERS = [
     {
@@ -71,26 +71,35 @@ MATERIAL_TEMPS = {
 SHELL_FRACTION = 0.30
 
 
-def tier_by_id(tier_id: str) -> dict:
-    return next((t for t in STRENGTH_TIERS if t["id"] == tier_id), STRENGTH_TIERS[1])
+def strength_tiers(cfg: dict | None) -> list[dict]:
+    """活动生效的强度档（配置中心 `strength_tiers` 优先，缺失/为空时用代码默认值）。"""
+    tiers = ((cfg or {}).get("strength_tiers") or [])
+    tiers = [t for t in tiers if isinstance(t, dict) and (t.get("id") or "").strip()]
+    return tiers or STRENGTH_TIERS
 
 
-def merge_params(material_id: str, strength: str, advanced: dict | None) -> dict:
+def tier_by_id(tier_id: str, cfg: dict | None = None) -> dict:
+    tiers = strength_tiers(cfg)
+    return next((t for t in tiers if t["id"] == tier_id), tiers[min(1, len(tiers) - 1)])
+
+
+def merge_params(material_id: str, strength: str, advanced: dict | None, cfg: dict | None = None) -> dict:
     """强度档 + 进阶覆盖 → 完整工艺参数快照
 
     优先级：进阶参数（用户显式填写）> 强度档 > 材料温度基线 > 全局基线
     """
-    tier = tier_by_id(strength)
+    tier = tier_by_id(strength, cfg)
     temps = MATERIAL_TEMPS.get(material_id, MATERIAL_TEMPS["pla"])
     base = dict(BASE_ADVANCED)
     base.update({"nozzle_temperature": temps["nozzle"],
                  "initial_layer_print_temperature": temps["nozzle"],
                  "bed_temperature": temps["bed"],
                  "initial_layer_bed_temperature": temps["bed"]})
-    # 强度档的核心三项必须生效（进阶没填时）
-    base.update({k: tier[k] for k in
-                 ("layer_height", "wall_loops", "infill_density", "top_shell_layers",
-                  "bottom_shell_layers", "infill_pattern")})
+    # 强度档的核心项生效（进阶没填时）；配置里缺字段就跳过，避免 KeyError
+    for k in ("layer_height", "wall_loops", "infill_density", "top_shell_layers",
+              "bottom_shell_layers", "infill_pattern"):
+        if tier.get(k) is not None:
+            base[k] = tier[k]
     merged = {**base, **(advanced or {})}
     merged["strength"] = tier["id"]
     merged["strength_name"] = tier["name"]
@@ -131,9 +140,9 @@ def estimate(stats: dict, material: dict, params: dict) -> dict:
     }
 
 
-def build_manifest(order, material: dict, params: dict, est: dict) -> dict:
+def build_manifest(order, material: dict, params: dict, est: dict, cfg: dict | None = None) -> dict:
     """打印清单（执行打印的负责人直接照着做的一页纸）"""
-    tier = tier_by_id(params.get("strength") or "standard")
+    tier = tier_by_id(params.get("strength") or "standard", cfg)
     geometry = order.geometry or {}
     return {
         "order_id": order.id,

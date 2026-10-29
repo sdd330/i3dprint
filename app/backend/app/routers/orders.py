@@ -328,7 +328,7 @@ def submit_print_requirement(order_id: int, body: PrintRequirementIn, db: DbDep,
 
     config = get_activity_config(db, order.campaign)
     material = _material_from_config(config, body.material_id)
-    params = merge_params(body.material_id, body.strength, body.advanced)
+    params = merge_params(body.material_id, body.strength, body.advanced, config)
     if body.operator_note.strip():
         params["operator_note"] = body.operator_note.strip()[:500]
 
@@ -338,7 +338,7 @@ def submit_print_requirement(order_id: int, body: PrintRequirementIn, db: DbDep,
     order.self_filament = body.self_filament
 
     est = estimate((order.val1 or {}).get("stats") or order.geometry or {}, material, params)
-    manifest = build_manifest(order, material, params, est)
+    manifest = build_manifest(order, material, params, est, config)
 
     seq = len(order.print_jobs) + 1
     job = PrintJob(order_id=order.id, seq=seq, status="queued",

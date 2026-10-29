@@ -5,6 +5,8 @@ from __future__ import annotations
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
+from typing import Any
+
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -29,7 +31,9 @@ def get_template(db: DbDep, user: AdminDep):
 
 
 class CategoryIn(BaseModel):
-    data: dict
+    # 分类数据可以是对象（如 fee）也可以是数组（如 presets / strength_tiers）——
+    # 之前限定 dict 导致列表型分类保存直接 422，配置中心里"参数档改了不生效"。
+    data: Any
 
 
 @router.put("/config/template/{category}")
