@@ -17,11 +17,20 @@ DEFAULT_TEMPLATE_DATA = {
         "notice": "本场为 3D 打印体验活动，非营利、费用仅覆盖成本。",
     },
     "fee": {
+        # colors：该材料**实际有货**的颜色（打印需求页只展示这里的颜色，执行打印也按它备料）
+        # 元素可以是 "#RRGGBB"，也可以是 {"name": "白", "hex": "#FFFFFF"}（带中文名更利于清单核对）
         "materials": [
-            {"id": "pla", "name": "PLA 聚乳酸", "price_per_g": 0.10, "coeff": 1.0, "density": 1.24},
-            {"id": "petg", "name": "PETG 共聚酯", "price_per_g": 0.16, "coeff": 1.2, "density": 1.27},
-            {"id": "abs", "name": "ABS 工程塑料", "price_per_g": 0.14, "coeff": 1.15, "density": 1.04},
-            {"id": "tpu", "name": "TPU 柔性材料", "price_per_g": 0.22, "coeff": 1.3, "density": 1.21},
+            {"id": "pla", "name": "PLA 聚乳酸", "price_per_g": 0.10, "coeff": 1.0, "density": 1.24,
+             "colors": [{"name": "白", "hex": "#F5F5F0"}, {"name": "黑", "hex": "#23262B"},
+                        {"name": "橙", "hex": "#E8602C"}, {"name": "蓝", "hex": "#2B6CB0"},
+                        {"name": "绿", "hex": "#2F855A"}, {"name": "灰", "hex": "#CBD5E0"}]},
+            {"id": "petg", "name": "PETG 共聚酯", "price_per_g": 0.16, "coeff": 1.2, "density": 1.27,
+             "colors": [{"name": "黑", "hex": "#23262B"}, {"name": "白", "hex": "#F5F5F0"},
+                        {"name": "青", "hex": "#38B2AC"}]},
+            {"id": "abs", "name": "ABS 工程塑料", "price_per_g": 0.14, "coeff": 1.15, "density": 1.04,
+             "colors": [{"name": "黑", "hex": "#23262B"}, {"name": "白", "hex": "#F5F5F0"}]},
+            {"id": "tpu", "name": "TPU 柔性材料", "price_per_g": 0.22, "coeff": 1.3, "density": 1.21,
+             "colors": [{"name": "黑", "hex": "#23262B"}, {"name": "红", "hex": "#C53030"}]},
         ],
         "filament_change_fee": 1.5,      # 换料补偿（元/次）
         "maintenance": {"base": 0.6, "per_gram": 0.004},  # 维护费 = base + per_gram×重量
@@ -148,16 +157,7 @@ def seed(db: Session):
             db.commit()
 
     # 默认活动模板（老库补齐新增分类/子键；已有值一律保留）
-    def _fill_missing(target: dict, defaults: dict) -> bool:
-        changed = False
-        for k, v in defaults.items():
-            if k not in target:
-                import copy as _copy
-                target[k] = _copy.deepcopy(v)
-                changed = True
-            elif isinstance(v, dict) and isinstance(target.get(k), dict):
-                changed |= _fill_missing(target[k], v)
-        return changed
+    from .services.config_service import _merge_defaults
 
     tpl = db.query(ConfigTemplate).filter_by(is_default=True).first()
     if tpl is None:
@@ -166,8 +166,9 @@ def seed(db: Session):
     else:
         import copy as _copy
         data = _copy.deepcopy(tpl.data or {})
-        if _fill_missing(data, DEFAULT_TEMPLATE_DATA):
-            tpl.data = data
+        merged = _merge_defaults(data, DEFAULT_TEMPLATE_DATA)
+        if merged != data:
+            tpl.data = merged
             db.commit()
 
     # 示例用户

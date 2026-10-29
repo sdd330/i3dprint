@@ -192,7 +192,9 @@ onMounted(() => { if (!app.meta) app.loadMeta(); load() })
             <el-descriptions :column="1" size="small" border>
               <el-descriptions-item label="模型">{{ order.model_name || '—' }}（v{{ order.model_version_id }}）</el-descriptions-item>
               <el-descriptions-item label="材料">
-                {{ material?.name || order.material_id }} · {{ order.color }}
+                {{ material?.name || order.material_id }}
+                <span v-if="order.manifest?.color_name"> · {{ order.manifest.color_name }}</span>
+                <span class="mono muted" style="font-size: 11.5px">{{ order.color }}</span>
               </el-descriptions-item>
               <el-descriptions-item label="强度">{{ order.params?.strength_name || '待选择' }}</el-descriptions-item>
               <el-descriptions-item label="参数">

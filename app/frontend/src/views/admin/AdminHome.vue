@@ -91,6 +91,17 @@ async function downloadModel(row) {
 function materialOf(row) {
   return app.materials.find(m => m.id === row.material_id)?.name || row.material_id
 }
+// 颜色名：优先用清单快照里的 color_name，其次按材料颜色清单反查
+function colorNameOf(row) {
+  if (row.manifest?.color_name) return row.manifest.color_name
+  const colors = app.materials.find(m => m.id === row.material_id)?.colors || []
+  const target = (row.color || '').toUpperCase()
+  for (const c of colors) {
+    const hex = (typeof c === 'string' ? c : c?.hex || '').toUpperCase()
+    if (hex === target) return typeof c === 'string' ? c : c?.name || hex
+  }
+  return ''
+}
 
 async function printStart(row) {
   const job = row.print_jobs.find(j => j.status === 'queued')
@@ -253,6 +264,7 @@ onMounted(load)
             <span class="mono" style="font-size: 12.5px; color: var(--ink-soft)">O{{ row.id }}</span>
             <span :style="{ display: 'inline-block', width: 12, height: 12, borderRadius: 3, background: row.color, border: '1px solid var(--line)' }" />
             <b style="font-size: 13.5px">{{ materialOf(row) }}</b>
+            <span class="muted" style="font-size: 12px">{{ colorNameOf(row) }}</span>
             <el-tag v-if="row.self_filament" size="small" :type="row.filament_approved ? 'success' : 'warning'" effect="plain">
               自备耗材{{ row.filament_approved ? '·已检' : '·待检' }}
             </el-tag>
@@ -371,7 +383,10 @@ onMounted(load)
           <el-descriptions-item label="需求">{{ manifestRow.name }}</el-descriptions-item>
           <el-descriptions-item label="用户">{{ manifestRow.user }}</el-descriptions-item>
           <el-descriptions-item label="材料">{{ materialOf(manifestRow) }}</el-descriptions-item>
-          <el-descriptions-item label="颜色">{{ manifestRow.color }}</el-descriptions-item>
+          <el-descriptions-item label="颜色">
+            {{ colorNameOf(manifestRow) || manifestRow.color }}
+            <span class="mono muted" style="font-size: 11.5px">{{ manifestRow.color }}</span>
+          </el-descriptions-item>
           <el-descriptions-item label="强度">{{ manifestRow.params?.strength_name }}</el-descriptions-item>
           <el-descriptions-item label="层高">{{ manifestRow.params?.layer_height }} mm</el-descriptions-item>
           <el-descriptions-item label="壁厚圈数">{{ manifestRow.params?.wall_loops }}</el-descriptions-item>

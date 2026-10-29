@@ -68,7 +68,12 @@ function collect() {
   // 文本区转数组
   if (active.value === 'compliance') c.list = complianceList.value.split('\n').map(s => s.trim()).filter(Boolean)
   if (active.value === 'qa') c.filter_words = filterWords.value.split('\n').map(s => s.trim()).filter(Boolean)
-  if (active.value === 'fee') c.materials = materials.value
+  if (active.value === 'fee') {
+    c.materials = materials.value.map(({ _colorsText, ...m }) => ({
+      ...m,
+      colors: parseColors(_colorsText).map(x => ({ name: x.name, hex: x.hex })),
+    }))
+  }
   if (active.value === 'presets') c.presets = presets.value
   if (active.value === 'strength_tiers') c.strength_tiers = strengthTiers.value
   if (active.value === 'print') c.printers = printers.value
@@ -93,7 +98,15 @@ const complianceList = ref('')
 const filterWords = ref('')
 const CONTACT_COLORS = ['#E8602C', '#2B6CB0', '#2F855A', '#9F7AEA', '#D69E2E', '#38B2AC']
 watch(active, (k) => {
-  if (k === 'fee') materials.value = JSON.parse(JSON.stringify(f.fee.materials || []))
+  if (k === 'fee') {
+    materials.value = JSON.parse(JSON.stringify(f.fee.materials || []))
+    // colors → 编辑用文本（名称:HEX，逗号分隔）
+    for (const m of materials.value) {
+      m._colorsText = (m.colors || [])
+        .map(c => typeof c === 'string' ? c : (c?.name ? `${c.name}:${c.hex}` : c?.hex))
+        .filter(Boolean).join(', ')
+    }
+  }
   if (k === 'presets') presets.value = JSON.parse(JSON.stringify(f.presets || []))
   if (k === 'strength_tiers') strengthTiers.value = JSON.parse(JSON.stringify(f.strength_tiers || []))
   if (k === 'print') printers.value = JSON.parse(JSON.stringify(f.print.printers || []))
@@ -102,6 +115,21 @@ watch(active, (k) => {
   }
   if (k === 'qa') filterWords.value = (f.qa.filter_words || []).join('\n')
 })
+// 「白:#F5F5F0, 黑:#23262B」→ [{name, hex}]；也接受纯 HEX（名称用 HEX 顶替）
+function parseColors(text) {
+  if (!text) return []
+  return String(text)
+    .split(/[,，;；\n]/)
+    .map(t => t.trim())
+    .filter(Boolean)
+    .map(t => {
+      const m = t.match(/^(.+?)\s*[:：]\s*(#[0-9a-fA-F]{3,8})$/)
+      if (m) return { name: m[1].trim(), hex: m[2].trim() }
+      return { name: t, hex: t }
+    })
+    .filter(c => /^#[0-9a-fA-F]{3,8}$/.test(c.hex))
+}
+
 const addRow = (list) => list.push({})
 // 新增打印机：编号按现有数量顺延，默认启用
 function addPrinter() {
@@ -172,6 +200,17 @@ onMounted(load)
               </el-table-column>
               <el-table-column label="密度" width="90">
                 <template #default="{ row }"><el-input-number v-model="row.density" size="small" :min="0.1" :step="0.01" :controls="false" /></template>
+              </el-table-column>
+              <el-table-column label="有货颜色（名称:HEX，逗号分隔）" min-width="260">
+                <template #default="{ row }">
+                  <el-input v-model="row._colorsText" size="small"
+                            placeholder="白:#F5F5F0, 黑:#23262B, 橙:#E8602C" />
+                  <div style="display: flex; gap: 4px; margin-top: 4px; flex-wrap: wrap">
+                    <span v-for="c in parseColors(row._colorsText)" :key="c.hex"
+                          :style="{ display: 'inline-block', width: 14, height: 14, borderRadius: 3, background: c.hex, border: '1px solid var(--line)' }"
+                          :title="`${c.name} ${c.hex}`" />
+                  </div>
+                </template>
               </el-table-column>
               <el-table-column width="60">
                 <template #default="{ $index }"><el-button link type="danger" @click="delRow(materials, $index)">删</el-button></template>

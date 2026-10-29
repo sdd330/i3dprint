@@ -19,12 +19,29 @@ def get_default_template(db: Session) -> ConfigTemplate:
 
 
 def _merge_defaults(value, default):
-    """把默认值补进缺失的键（递归；已有值一律保留，不覆盖用户配置）。"""
+    """把默认值补进缺失的键（递归；已有值一律保留，不覆盖用户配置）。
+
+    · dict：递归补子键
+    · list（元素是带 id 的对象，如 materials / strength_tiers / printers）：
+      按 id 对齐，只给**已存在**的元素补子键；不新增/删除元素（尊重用户的增删）
+    · 其他：value 优先
+    """
     if isinstance(default, dict) and isinstance(value, dict):
         out = dict(default)
         for k, v in value.items():
             out[k] = _merge_defaults(v, default.get(k))
         return out
+    if isinstance(default, list) and isinstance(value, list):
+        if all(isinstance(d, dict) and d.get("id") for d in default):
+            by_id = {d["id"]: d for d in default}
+            out = []
+            for item in value:
+                if isinstance(item, dict) and item.get("id") in by_id:
+                    out.append(_merge_defaults(item, by_id[item["id"]]))
+                else:
+                    out.append(item)
+            return out
+        return value
     if value is None:
         return default
     return value

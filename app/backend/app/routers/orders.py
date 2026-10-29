@@ -21,7 +21,7 @@ from ..core.dynamic_settings import get_setting
 from ..core.security import client_ip, get_current_user, write_audit
 from ..models import Campaign, CostLedger, Model, ModelVersion, Order, PrintJob, Review, User
 from ..services.config_service import get_activity_config
-from ..services.print_requirement import build_manifest, estimate, merge_params
+from ..services.print_requirement import build_manifest, color_name, estimate, material_colors, merge_params
 from ..services.state_machine import StateError, assert_campaign_open, transition
 from ..services.val1 import build_preset, run_val1
 from .auth import _user_out  # noqa: F401  (保持与原路由一致的导入面)
@@ -328,6 +328,14 @@ def submit_print_requirement(order_id: int, body: PrintRequirementIn, db: DbDep,
 
     config = get_activity_config(db, order.campaign)
     material = _material_from_config(config, body.material_id)
+    # 颜色必须属于该材料实际有货的颜色（配置中心按材料维护颜色清单）
+    colors = material_colors(material)
+    if colors:
+        allowed = {c["hex"].upper() for c in colors}
+        if body.color.upper() not in allowed:
+            raise HTTPException(status_code=400,
+                                detail=f"{material.get('name', body.material_id)} 没有该颜色，可选："
+                                       + "、".join(f"{c['name']}({c['hex']})" for c in colors))
     params = merge_params(body.material_id, body.strength, body.advanced, config)
     if body.operator_note.strip():
         params["operator_note"] = body.operator_note.strip()[:500]

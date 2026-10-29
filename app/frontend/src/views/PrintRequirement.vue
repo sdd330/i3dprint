@@ -19,7 +19,8 @@ const submitting = ref(false)
 const result = ref(null)        // 提交后的清单结果
 const resultVisible = ref(false)
 
-const PALETTE = ['#E8602C', '#2B6CB0', '#2F855A', '#D69E2E', '#38B2AC', '#9F7AEA', '#F687B3', '#CBD5E0']
+// 兜底色板：材料没配置颜色时使用（配置中心「费用参数 → 材料」可按材料维护颜色清单）
+const FALLBACK_COLORS = ['#E8602C', '#2B6CB0', '#2F855A', '#D69E2E', '#38B2AC', '#9F7AEA', '#F687B3', '#CBD5E0']
 
 // 进阶参数默认值 = X1C 标准档基准（字段名同 OrcaSlicer）
 const DEFAULTS = {
@@ -57,10 +58,28 @@ const tinySize = computed(() => {
   return Math.max(...b) < 10
 })
 
-watch(() => form.material, (m) => {
-  const mat = materials.value.find(x => x.id === m)
-  if (mat?.colors?.length) form.color = mat.colors[0]
+// 当前材料的有货颜色 → [{ name, hex }]（字符串也支持）
+const colorOptions = computed(() => {
+  const raw = material.value?.colors || []
+  const out = []
+  const seen = new Set()
+  for (const c of raw) {
+    const hex = (typeof c === 'string' ? c : c?.hex || '').trim()
+    if (!hex || seen.has(hex.toUpperCase())) continue
+    seen.add(hex.toUpperCase())
+    out.push({ name: (typeof c === 'string' ? hex : c?.name || hex), hex })
+  }
+  return out.length ? out : FALLBACK_COLORS.map(hex => ({ name: hex, hex }))
 })
+const selectedColorName = computed(() => colorOptions.value.find(c => c.hex.toUpperCase() === (form.color || '').toUpperCase())?.name || '')
+
+// 切换材料：颜色自动落到该材料的第一个颜色（避免出现"该材料没有的颜色"）
+watch(() => form.material, () => {
+  const opts = colorOptions.value
+  if (!opts.some(c => c.hex.toUpperCase() === (form.color || '').toUpperCase())) {
+    form.color = opts[0]?.hex || ''
+  }
+}, { immediate: true })
 
 // 切换强度档时把核心三项同步到进阶参数（用户在进阶里仍可覆盖）
 watch(() => form.strength, (id) => {
@@ -150,12 +169,21 @@ onMounted(load)
           </div>
 
           <div style="margin-top: 14px">
-            <div class="muted" style="font-size: 12px; margin-bottom: 6px">颜色</div>
-            <div style="display: flex; gap: 8px; flex-wrap: wrap">
-              <span v-for="c in PALETTE" :key="c" @click="form.color = c"
-                    :style="{ display: 'inline-block', width: '28px', height: '28px', borderRadius: '8px', background: c, cursor: 'pointer',
-                              border: form.color === c ? '3px solid #23262b' : '2px solid #fff',
-                              boxShadow: '0 0 0 1px var(--line)' }" />
+            <div class="muted" style="font-size: 12px; margin-bottom: 6px">
+              颜色<span v-if="material">（{{ material.name }} 现有 {{ colorOptions.length }} 种）</span>
+            </div>
+            <div style="display: flex; gap: 10px; flex-wrap: wrap">
+              <div v-for="c in colorOptions" :key="c.hex" @click="form.color = c.hex"
+                   style="display: flex; flex-direction: column; align-items: center; gap: 3px; cursor: pointer">
+                <span :style="{ display: 'inline-block', width: '30px', height: '30px', borderRadius: '8px', background: c.hex,
+                                border: form.color.toUpperCase() === c.hex.toUpperCase() ? '3px solid #23262b' : '2px solid #fff',
+                                boxShadow: '0 0 0 1px var(--line)' }" />
+                <span class="muted" style="font-size: 11.5px"
+                      :style="{ color: form.color.toUpperCase() === c.hex.toUpperCase() ? 'var(--ink)' : '' }">{{ c.name }}</span>
+              </div>
+            </div>
+            <div v-if="!material?.colors?.length" class="muted" style="font-size: 11.5px; margin-top: 6px">
+              该材料尚未在配置中心维护颜色清单，暂用默认色板
             </div>
           </div>
         </div>
@@ -261,7 +289,10 @@ onMounted(load)
                   :description="`清单 #${result.job.seq} · 预估 ${result.estimate.weight_g}g / ${Math.round(result.estimate.time_sec / 60)}min（几何估算，非切片结果）`" />
         <el-descriptions :column="2" size="small" border>
           <el-descriptions-item label="材料">{{ result.manifest.material.name }}</el-descriptions-item>
-          <el-descriptions-item label="颜色">{{ result.manifest.color }}</el-descriptions-item>
+          <el-descriptions-item label="颜色">
+            {{ result.manifest.color_name || result.manifest.color }}
+            <span class="mono muted" style="font-size: 11.5px">{{ result.manifest.color }}</span>
+          </el-descriptions-item>
           <el-descriptions-item label="强度">{{ result.manifest.strength.name }}</el-descriptions-item>
           <el-descriptions-item label="层高">{{ result.manifest.params.layer_height }} mm</el-descriptions-item>
           <el-descriptions-item label="壁厚圈数">{{ result.manifest.params.wall_loops }} 圈</el-descriptions-item>

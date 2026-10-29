@@ -78,6 +78,40 @@ def strength_tiers(cfg: dict | None) -> list[dict]:
     return tiers or STRENGTH_TIERS
 
 
+def material_colors(material: dict) -> list[dict]:
+    """材料的可取颜色 → [{"name", "hex"}]。
+
+    配置里颜色可以是 "#RRGGBB" 字符串，也可以是 {"name": "白", "hex": "#FFFFFF"}；
+    统一归一化，缺 name 时用 hex 顶替；非法/重复的忽略。
+    """
+    out, seen = [], set()
+    for c in (material or {}).get("colors") or []:
+        if isinstance(c, str):
+            hexv, name = c.strip(), c.strip()
+        elif isinstance(c, dict):
+            hexv = str(c.get("hex") or "").strip()
+            name = str(c.get("name") or hexv).strip()
+        else:
+            continue
+        if not hexv:
+            continue
+        key = hexv.upper()
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append({"name": name or hexv, "hex": hexv})
+    return out
+
+
+def color_name(material: dict, hex_color: str) -> str:
+    """按材料颜色清单反查颜色名（清单/订单展示用）。"""
+    target = (hex_color or "").upper()
+    for c in material_colors(material):
+        if c["hex"].upper() == target:
+            return c["name"]
+    return ""
+
+
 def tier_by_id(tier_id: str, cfg: dict | None = None) -> dict:
     tiers = strength_tiers(cfg)
     return next((t for t in tiers if t["id"] == tier_id), tiers[min(1, len(tiers) - 1)])
@@ -155,6 +189,8 @@ def build_manifest(order, material: dict, params: dict, est: dict, cfg: dict | N
         "material": {"id": material.get("id"), "name": material.get("name"),
                      "price_per_g": material.get("price_per_g"), "coeff": material.get("coeff")},
         "color": order.color,
+        "color_name": color_name(material, order.color),
+        "available_colors": material_colors(material),
         "strength": {"id": tier["id"], "name": tier["name"], "desc": tier["desc"]},
         "params": params,
         "estimate": est,
