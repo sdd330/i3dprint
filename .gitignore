@@ -41,3 +41,8 @@ logs/
 /tmp/
 
 .playwright-cli
+
+# ---- 原生扩展编译产物（C 源码入库，产物本机编译）----
+app/backend/native/*.dylib
+app/backend/native/*.so
+app/backend/native/*.o

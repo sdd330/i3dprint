@@ -81,7 +81,10 @@ APP_SETTINGS_META = [
     ("slicer_mock", "slicer", "切片模拟开关", "true=估算模拟（标注模拟估算）；false=真实 OrcaSlicer", "bool", False),
     ("slicer_max_concurrent", "slicer", "最大并行切片数", "同时最多几个 OrcaSlicer 切片进程；超出排队等待（建议 2，单机 8 核）", "int", False),
     ("max_upload_bytes", "service", "模型上传上限（字节）", "超过则拒绝上传", "int", False),
-    ("analysis_timeout_sec", "service", "几何分析超时（秒）", "大文件解析超过则提示", "int", False),
+    ("analysis_timeout_sec", "service", "几何分析超时（秒）", "仅生僻格式回退 trimesh 子进程时生效；STL/OBJ 走快速解析（秒级内）", "int", False),
+    ("wall_raycast_enabled", "service", "精确壁厚（抽样射线）", "默认关闭：壁厚用 2V/A 快速估算（薄壳件即壁厚）。开启后对闭合模型抽样投射射线取 5 分位，更准但慢", "bool", False),
+    ("wall_ray_samples", "service", "壁厚采样射线数", "开启精确壁厚时的采样数（越大越准越慢，建议 800）", "int", False),
+    ("wall_raycast_max_faces", "service", "精确壁厚面数上限", "超过该面数不抽样（避免慢），退回 2V/A 估算", "int", False),
     ("jwt_secret", "service", "JWT 密钥", "生产环境务必修改。更改后：① 所有登录会话失效；② 已保存的 API Key（DeepSeek/Tripo）将无法解密，需在软件设置中重新填写", "secret", True),
     ("compliance_statement", "misc", "平台合规声明", "展示于首页/审核界面（FRC Team 6940）", "str", False),
 ]

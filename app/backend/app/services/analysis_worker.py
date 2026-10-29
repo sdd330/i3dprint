@@ -42,3 +42,27 @@ def analyze_with_timeout(path: str, timeout_sec: int) -> dict:
             proc.kill()
             proc.join(timeout=5)
         return {"error": f"模型几何分析超时（>{timeout_sec}s），已强制终止，请使用面数较少的模型或稍后重试"}
+
+
+def analyze_upload(path: str, timeout_sec: int) -> dict:
+    """上传阶段的解析入口（2026-10：上传只需预览级信息，不再为每次上传付子进程开销）。
+
+    1) 先走进程内轻量解析（numpy 向量化，本机 96k 面 ≈ 0.1s、1.3M 面 ≈ 1s；
+       numpy 长运算会释放 GIL，不会像 trimesh 那样把 event loop 卡死）；
+    2) 快速解析不支持/失败（生僻格式、坏文件）时，才退回子进程 + trimesh 兜底。
+    """
+    from ..core.dynamic_settings import get_setting
+    from .fast_loader import fast_analyze_file
+
+    try:
+        fast = fast_analyze_file(
+            path,
+            wall_raycast=bool(get_setting("wall_raycast_enabled", False)),
+            wall_ray_samples=int(get_setting("wall_ray_samples", 800)),
+            wall_raycast_max_faces=int(get_setting("wall_raycast_max_faces", 60000)),
+        )
+        if fast and fast.get("face_count"):
+            return fast
+    except Exception:
+        pass
+    return analyze_with_timeout(path, timeout_sec)

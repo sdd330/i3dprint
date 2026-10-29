@@ -1,5 +1,10 @@
 # E3DP backend — Val1 模型审核引擎（设计文档 §5）
-# 底层：trimesh 真实几何分析（与 AI 建模体检同源）；规则阈值来自配置中心（决策清单 §6/§14）
+# 底层：几何分析（与 AI 建模体检同源）；规则阈值来自配置中心（决策清单 §6/§14）
+#
+# 性能约定（2026-10 用户要求「上传只做轻量解析，因为只是预览」）：
+#   · STL/OBJ 走 services/fast_loader 的 numpy 向量化解析（本机 96k 面 ≈ 0.1s，1.3M 面 ≈ 1s）
+#   · 壁厚不再逐面投射射线（旧实现是 O(面数²)，96k 面即可卡死数十秒）：
+#     默认用 2V/A（薄壳件即壁厚），如需精确值可打开 wall_raycast（抽样射线，5 分位）
 
 from __future__ import annotations
 
@@ -66,38 +71,61 @@ def analyze_mesh(mesh: trimesh.Trimesh, max_faces_for_wall: int = 200_000, max_f
             report["overhang_pct"] = 0.0
     else:
         report["overhang_pct"] = 0.0
-    # 壁厚近似：法线方向 raycast 采样最近命中距离的 5 分位（面数过多时跳过）
+    # 壁厚：默认用 2V/A（薄壳件 = 壁厚；实心件给出体量厚度，不会误判过薄）
+    # 旧实现是逐面射线（O(面数²)，96k 面即可卡住数十秒），已改为可选抽样射线
     report["min_wall"] = None
-    if len(mesh.faces) <= max_faces_for_wall and len(mesh.faces) > 0:
-        try:
-            origins = mesh.triangles_center + mesh.face_normals * 0.05
-            directions = mesh.face_normals
-            hit_locs, hit_idx, _ = mesh.ray.intersects_location(origins, directions)
-            if len(hit_locs):
-                dists = np.linalg.norm(hit_locs - origins[hit_idx], axis=1)
-                wall = np.percentile(dists[dists > 0.1], 5)
-                report["min_wall"] = round(float(wall), 2)
-        except Exception:
-            report["min_wall"] = None
+    report["wall_source"] = None
+    if report["closed"] and report["surface_cm2"] > 0:
+        report["min_wall"] = round(2.0 * report["volume_cm3"] * 1000.0 / (report["surface_cm2"] * 100.0), 2)
+        report["wall_source"] = "mean_2v_a"
+    from ..core.dynamic_settings import get_setting
+    if get_setting("wall_raycast_enabled", False) and report["closed"]:
+        sampled = _sample_min_wall(mesh, int(get_setting("wall_ray_samples", 800)),
+                                   int(get_setting("wall_raycast_max_faces", 60000)))
+        if sampled is not None:
+            report["min_wall"], report["wall_source"] = sampled, "raycast_sample"
     return report
 
 
-def analyze_file(path: str) -> dict:
-    """加载并分析模型文件。
+def _sample_min_wall(mesh, samples: int, max_faces: int) -> float | None:
+    """抽样射线壁厚（5 分位）：只在显式开启 wall_raycast_enabled 时使用。
 
-    - force="mesh" + skip_texture=True：OBJ 带 MTL/纹理贴图时跳过材质解析（Val1 几何检查不需要纹理，
-      同时避免依赖 Pillow 对超大贴图的拷贝）
-    - process=False：关闭 trimesh 的自动修复/合并（160MB 大网格会非常慢且吃内存）
+    成本 O(采样数 × 面数)，因此默认关闭并限制面数上限；返回值单位 mm。
+    """
+    if len(mesh.faces) == 0 or len(mesh.faces) > max_faces:
+        return None
+    try:
+        k = min(samples, len(mesh.faces))
+        idx = np.random.default_rng(0).choice(len(mesh.faces), k, replace=False)
+        origins = mesh.triangles_center[idx] - mesh.face_normals[idx] * 0.05
+        hit_locs, hit_idx, _ = mesh.ray.intersects_location(origins, -mesh.face_normals[idx])
+        if not len(hit_locs):
+            return None
+        dists = np.linalg.norm(hit_locs - origins[hit_idx], axis=1)
+        dists = dists[dists > 0.1]
+        return round(float(np.percentile(dists, 5)), 2) if dists.size else None
+    except Exception:
+        return None
+
+
+def analyze_file(path: str) -> dict:
+    """加载并分析模型文件（预览级轻量解析，纯 numpy，毫秒级到秒级）。
+
+    - STL / OBJ → services/fast_loader（memmap + 向量化，不依赖 trimesh 对象）
+    - 其他格式或快速解析失败 → trimesh 兜底（force="mesh"、skip_texture、process=False）
     - 解析失败返回降级报告（integrity fail），由规则引擎判「不通过」，绝不抛 500
     """
     try:
-        ext = str(path).lower().rsplit(".", 1)[-1] if "." in str(path) else ""
-        if ext == "obj":
-            # OBJ 走向量化快速解析器（大模型从 ~10s 压到 ~4s，接近 BambuStudio）
-            from .fast_loader import fast_analyze_obj
-            fast = fast_analyze_obj(path)
-            if fast is not None:
-                return fast
+        from .fast_loader import fast_analyze_file
+        from ..core.dynamic_settings import get_setting
+        fast = fast_analyze_file(
+            path,
+            wall_raycast=bool(get_setting("wall_raycast_enabled", False)),
+            wall_ray_samples=int(get_setting("wall_ray_samples", 800)),
+            wall_raycast_max_faces=int(get_setting("wall_raycast_max_faces", 60000)),
+        )
+        if fast is not None:
+            return fast
         mesh = trimesh.load(path, force="mesh", skip_texture=True, process=False)
         # 关键：STL 顶点本不共享索引，必须合并顶点后才能正确判断水密/流形/体积
         # （否则 is_watertight 恒为 False，好模型也会误判「不通过」）

@@ -14,6 +14,8 @@ python3 -m venv .venv && ./.venv/bin/pip install -r requirements.txt
 ./.venv/bin/uvicorn app.main:app --port 8000        # 首次启动自动建库 + 种子数据
 ```
 
+> 可选：`cd backend/native && ./build.sh` 编译原生 STL 解析器（不编译也可运行，会自动回退 numpy 实现）。
+
 ### 前端（默认端口 5173）
 
 ```bash
@@ -41,6 +43,42 @@ npm run dev        # /api 自动代理到 localhost:8000
 | **打印清单页** | 负责人端 `/admin/manifest` 整页清单（可 `window.print()`）；工作台打印队列直接展示材料/强度/参数/尺寸/预估/备注，并支持下载模型、耗材检验、开始打印 |
 | **摆放交互改进** | 直接按住模型在平台平面拖动（1mm 吸附 + 越界回弹）；TransformControls 三轴手柄（G 移动 / R 旋转 15° 吸附 / S 缩放 0.05 吸附）；百分比滑块 + 按毫米精确缩放（等比/单轴，后端按三轴 scale 换算体积/壁厚/bbox）；F 聚焦；修掉 `v-loading` 遮罩挡住画布导致视角无法拖拽的老问题 |
 | **收费信息隐去** | `flow.billing_visible=false`：首页/订单/设置/审计等处的费用与账单 UI 全部隐藏（后端计费逻辑与流水保留，置 true 即恢复） |
+
+## 原生 STL 解析器（C，2026-10）
+
+上传阶段只需要"预览级"几何信息，因此 STL 解析改为独立 C 实现，思路对照 OrcaSlicer / admesh
+（`deps_src/admesh/stlinit.cpp::stl_open_count_facets`、`shared.cpp::stl_generate_shared_vertices`）：
+
+| 环节 | 做法 |
+|---|---|
+| 二进制/ASCII 判定 | 首个面记录 128 字节内有无 >127 字节 + `84 + n×50 == file_size` 双向校验；**面数以文件大小为准**，头部声明值只做对照（头部被改也能读） |
+| 读取 | `mmap` 零拷贝 + 50 字节定长跨步（法线 12 + 顶点 36 + 属性 2），跳过含 NaN 的三角 |
+| 顶点去重 | 坐标量化成 64 位键（包围盒对角线 / 2²¹）→ **LSD 基数排序** → 按 rank 分配索引（确定性、无哈希碰撞） |
+| 拓扑 | 无向边键排序后"每条边出现 2 次"→ 封闭；有向边键相邻重复 → 缠绕不一致（非流形） |
+| 统计 | 包围盒 / 表面积 / 有向体积（散度定理）/ 悬垂占比（法线 z < −sin45°） |
+| 壁厚 | `2V/A`（薄壳件即壁厚；实心件给出体量厚度，不误报"过薄"）。**不再逐面投射射线**——旧实现是 O(面数²)，96k 面即卡死数十秒 |
+| 超大模型 | 面数 > 2,000,000 时跳过拓扑（省下数百 MB 峰值），返回 `topology_note` 提示 |
+
+**实测（本机 x86_64 Python / Intel 容器化环境）**
+
+| 文件 | 面数 | 旧实现（trimesh + 逐面射线） | numpy 版 | **C 版** |
+|---|---|---|---|---|
+| `Violet 3DP_fixed.stl`（4.8MB） | 96,684 | 卡住（>60s 未返回） | 110 ms | **24–35 ms** |
+| `sphere_328k.stl`（16MB） | 327,680 | 数十秒 | 313 ms | **95–130 ms** |
+| `sphere_1310k.stl`（65MB） | 1,310,720 | 不可用 | 1.28 s | **375–525 ms** |
+
+端到端上传（HTTP + 落盘 + 解析）：目标文件 **50–60 ms**，65MB 大文件 **0.62 s**。
+C / numpy / trimesh 三方的 bbox、面积、体积、封闭性、流形性逐项一致（含 ASCII STL、开口网格、NaN 面、错误头部等边界用例）。
+
+**编译方式**
+
+```bash
+cd backend/native && ./build.sh      # macOS 出 universal2（x86_64+arm64），Linux 出 .so
+```
+
+- 产物不入库；**首次调用会自动编译一次**（检测到 `cc` 才做），失败或无编译器时静默回退 numpy 实现，功能不受影响。
+- 为什么 macOS 要 `-arch x86_64 -arch arm64`：本机 Python 可能是 Intel/Rosetta 版，而 clang 默认按当前机器出 arm64，单一架构会 `dlopen` 失败。
+- 需要更精确的壁厚时，在「软件设置 → 服务」打开 `wall_raycast_enabled`（抽样射线，5 分位，默认关闭）。
 
 ## 功能一览
 

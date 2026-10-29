@@ -46,6 +46,10 @@ class Settings(BaseSettings):
     max_upload_bytes: int = 300 * 1024 * 1024
     # 几何分析超时（秒）：超过返回明确提示，不再无限阻塞
     analysis_timeout_sec: int = 90
+    # 壁厚测量（2026-10）：默认用 2V/A 快速估算；需要精确值时开启抽样射线
+    wall_raycast_enabled: bool = False
+    wall_ray_samples: int = 800
+    wall_raycast_max_faces: int = 60000
 
     # 切片器（设计文档 §6：OrcaSlicer CLI 服务端切片，POC 通过后关闭 mock）
     orca_slicer_path: str = "/Applications/OrcaSlicer.app/Contents/MacOS/OrcaSlicer"

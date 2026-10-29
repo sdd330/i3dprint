@@ -32,8 +32,8 @@ DbDep = Annotated[Session, Depends(get_db)]
 UserDep = Annotated[User, Depends(get_current_user)]
 
 
-# 几何分析：独立子进程执行（trimesh 持 GIL，线程池超时杀不掉 → 改进程隔离，见 analysis_worker）
-from ..services.analysis_worker import analyze_with_timeout as _analyze_with_timeout
+# 几何分析：上传阶段走进程内轻量解析（毫秒级）；生僻格式才退回子进程 trimesh（见 analysis_worker）
+from ..services.analysis_worker import analyze_upload as _analyze_upload
 
 # 可编辑模型的状态（草稿 / 摆放中 / 人工判定需修改 / 模型类返工）
 EDITABLE_MODEL_STATUS = ("draft", "modeling", "val1_failed", "rework")
@@ -202,7 +202,7 @@ def upload_model(order_id: int, file: UploadFile, db: DbDep, user: UserDep):
     path = os.path.join(settings.upload_dir, fname)
     with open(path, "wb") as f:
         f.write(data)
-    stats = _analyze_with_timeout(path, int(get_setting("analysis_timeout_sec", settings.analysis_timeout_sec)))
+    stats = _analyze_upload(path, int(get_setting("analysis_timeout_sec", settings.analysis_timeout_sec)))
     if stats.get("error"):
         raise HTTPException(status_code=400, detail=stats["error"])
     if not stats.get("face_count"):
