@@ -17,6 +17,7 @@ const routes = [
   // 负责人端
   { path: '/admin', component: () => import('@/views/admin/AdminHome.vue'), meta: { admin: true } },
   { path: '/admin/manifest', component: () => import('@/views/admin/PrintManifest.vue'), meta: { admin: true } },
+  { path: '/admin/campaigns', component: () => import('@/views/admin/Campaigns.vue'), meta: { admin: true } },
   { path: '/admin/config', component: () => import('@/views/admin/ConfigCenter.vue'), meta: { admin: true } },
   { path: '/admin/roles', component: () => import('@/views/admin/RoleManage.vue'), meta: { admin: true } },
   { path: '/admin/qa-config', component: () => import('@/views/admin/QaConfig.vue'), meta: { admin: true } },

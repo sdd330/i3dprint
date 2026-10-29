@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session
 from ..core.database import get_db
 from ..core.security import client_ip, require_permission, write_audit
 from ..models import Campaign, Issue, Order, PrintJob, Review, User
+from ..services.campaign_service import get_current_campaign, list_campaigns, set_current_campaign
 from ..services.config_service import clone_config_for_campaign, get_activity_config
 from ..services.cost import append_cost, calc_filament_fee, settle_order_costs
 from ..services.print_service import allocate, find_idle_printer, printer_snapshot, release
@@ -41,7 +42,7 @@ def _get_order(db: Session, order_id: int) -> Order:
 
 @router.get("/queues")
 def queues(db: DbDep, user: Annotated[User, Depends(require_permission("order:view_all"))]):
-    campaign = db.query(Campaign).order_by(Campaign.id.desc()).first()
+    campaign = get_current_campaign(db)
     config = get_activity_config(db, campaign) if campaign else {}
 
     def brief(o: Order) -> dict:
@@ -315,7 +316,126 @@ def val3_review(order_id: int, body: Val3In, db: DbDep,
     return {"ok": True}
 
 
-# ---------- 活动生命周期与账单（§12.1 / §12.4） ----------
+# ---------- 活动（场次）管理：列表 / 新建 / 编辑 / 切换 / 生命周期 / 账单 ----------
+
+def _campaign_out(c: Campaign, db: Session) -> dict:
+    from ..models import Order
+    orders = db.query(Order).filter_by(campaign_id=c.id)
+    total = orders.count()
+    active = orders.filter(Order.status.notin_(["completed", "terminated"])).count()
+    current = get_current_campaign(db)
+    return {
+        "id": c.id, "name": c.name, "status": c.status, "password": c.password,
+        "open_at": c.open_at, "close_at": c.close_at, "max_participants": c.max_participants,
+        "created_at": c.created_at, "archived_at": c.archived_at,
+        "is_current": bool(current and current.id == c.id),
+        "config_sources": (c.config or {}).get("_sources", {}),
+        "orders_total": total, "orders_active": active,
+        "has_bill": bool(c.bill), "bill_total": (c.bill or {}).get("totals", {}).get("total"),
+    }
+
+
+@router.get("/campaigns")
+def list_campaigns_api(db: DbDep, user: Annotated[User, Depends(require_permission("campaign:manage"))]):
+    """活动列表（含当前活动标识与订单统计）。"""
+    return {"campaigns": [_campaign_out(c, db) for c in list_campaigns(db)]}
+
+
+class CampaignCreateIn(BaseModel):
+    name: str
+    open_at: str = ""
+    close_at: str = ""
+    max_participants: int = 20
+    password: str = ""
+    inherit: str = "template"  # template | previous
+    inherit_id: int | None = None
+
+
+@router.post("/campaigns")
+def create_campaign(body: CampaignCreateIn, db: DbDep,
+                    user: Annotated[User, Depends(require_permission("campaign:manage"))], request: Request):
+    """新建活动：复制默认模板或指定场次的参数副本；新活动自动设为「当前活动」。"""
+    name = (body.name or "").strip()
+    if not name:
+        raise HTTPException(status_code=400, detail="请填写活动名称")
+    config = clone_config_for_campaign(db, source=body.inherit, source_campaign_id=body.inherit_id)
+    password = (body.password or "").strip() or f"E3DP-{_now()[:10].replace('-', '')}"
+    campaign = Campaign(name=name, status="待开放", password=password,
+                        open_at=body.open_at, close_at=body.close_at,
+                        max_participants=max(1, int(body.max_participants or 20)), config=config)
+    db.add(campaign)
+    db.commit()
+    db.refresh(campaign)
+    set_current_campaign(db, campaign.id)
+    write_audit(db, user, "campaign.create", target=campaign.name,
+                detail=f"inherit={body.inherit}", ip=client_ip(request))
+    return {"ok": True, "campaign": _campaign_out(campaign, db)}
+
+
+class CampaignUpdateIn(BaseModel):
+    name: str | None = None
+    password: str | None = None
+    open_at: str | None = None
+    close_at: str | None = None
+    max_participants: int | None = None
+
+
+@router.put("/campaigns/{campaign_id}")
+def update_campaign(campaign_id: int, body: CampaignUpdateIn, db: DbDep,
+                    user: Annotated[User, Depends(require_permission("campaign:manage"))], request: Request):
+    """编辑活动基本信息（名称/取件密码/开放与收尾时间/人数上限）。"""
+    campaign = db.get(Campaign, campaign_id)
+    if not campaign:
+        raise HTTPException(status_code=404, detail="活动不存在")
+    changed = []
+    if body.name is not None and body.name.strip():
+        campaign.name = body.name.strip(); changed.append("名称")
+    if body.password is not None and body.password.strip():
+        campaign.password = body.password.strip(); changed.append("取件密码")
+    if body.open_at is not None:
+        campaign.open_at = body.open_at; changed.append("开放时间")
+    if body.close_at is not None:
+        campaign.close_at = body.close_at; changed.append("收尾时间")
+    if body.max_participants is not None:
+        campaign.max_participants = max(1, int(body.max_participants)); changed.append("人数上限")
+    db.commit()
+    write_audit(db, user, "campaign.update", target=campaign.name, detail="、".join(changed), ip=client_ip(request))
+    return {"ok": True, "campaign": _campaign_out(campaign, db)}
+
+
+@router.post("/campaigns/{campaign_id}/activate")
+def activate_campaign(campaign_id: int, db: DbDep,
+                      user: Annotated[User, Depends(require_permission("campaign:manage"))], request: Request):
+    """切换当前活动（学生端/工作台/配置中心/打印清单都以当前活动为准）。"""
+    try:
+        campaign = set_current_campaign(db, campaign_id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    write_audit(db, user, "campaign.activate", target=campaign.name, ip=client_ip(request))
+    return {"ok": True, "campaign": _campaign_out(campaign, db)}
+
+
+class CampaignDeleteIn(BaseModel):
+    force: bool = False
+
+
+@router.delete("/campaigns/{campaign_id}")
+def delete_campaign(campaign_id: int, db: DbDep,
+                    user: Annotated[User, Depends(require_permission("campaign:manage"))], request: Request,
+                    force: bool = False):
+    """删除活动：仅允许删除**没有订单**的活动（有订单时请用归档，保留历史）。"""
+    campaign = db.get(Campaign, campaign_id)
+    if not campaign:
+        raise HTTPException(status_code=404, detail="活动不存在")
+    order_count = db.query(Order).filter_by(campaign_id=campaign.id).count()
+    if order_count and not force:
+        raise HTTPException(status_code=409, detail=f"该活动已有 {order_count} 条需求，不能删除；请改为归档")
+    name = campaign.name
+    db.delete(campaign)
+    db.commit()
+    write_audit(db, user, "campaign.delete", target=name, detail=f"orders={order_count}", ip=client_ip(request))
+    return {"ok": True}
+
 
 class CampaignTransitionIn(BaseModel):
     to: str
@@ -323,8 +443,12 @@ class CampaignTransitionIn(BaseModel):
 
 @router.post("/campaign/transition")
 def campaign_transition(body: CampaignTransitionIn, db: DbDep,
-                        user: Annotated[User, Depends(require_permission("campaign:manage"))], request: Request):
-    campaign = db.query(Campaign).order_by(Campaign.id.desc()).first()
+                        user: Annotated[User, Depends(require_permission("campaign:manage"))], request: Request,
+                        campaign_id: int | None = None):
+    """活动生命周期流转（可指定 campaign_id，默认当前活动）。"""
+    campaign = db.get(Campaign, campaign_id) if campaign_id else get_current_campaign(db)
+    if not campaign:
+        raise HTTPException(status_code=404, detail="活动不存在")
     try:
         transition_campaign(campaign, body.to)
     except StateError as e:
@@ -334,27 +458,7 @@ def campaign_transition(body: CampaignTransitionIn, db: DbDep,
         campaign.archived_at = _now()
     db.commit()
     write_audit(db, user, "campaign.transition", target=campaign.name, detail=body.to, ip=client_ip(request))
-    return {"ok": True, "campaign": {"id": campaign.id, "status": campaign.status, "bill": campaign.bill}}
-
-
-class CampaignCreateIn(BaseModel):
-    name: str
-    open_at: str = ""
-    close_at: str = ""
-    inherit: str = "template"  # template | previous
-    inherit_id: int | None = None
-
-
-@router.post("/campaigns")
-def create_campaign(body: CampaignCreateIn, db: DbDep,
-                    user: Annotated[User, Depends(require_permission("campaign:manage"))], request: Request):
-    config = clone_config_for_campaign(db, source=body.inherit, source_campaign_id=body.inherit_id)
-    campaign = Campaign(name=body.name, status="待开放", password=f"E3DP-{_now()[:10].replace('-', '')}",
-                        open_at=body.open_at, close_at=body.close_at, config=config)
-    db.add(campaign)
-    db.commit()
-    write_audit(db, user, "campaign.create", target=campaign.name, detail=f"inherit={body.inherit}", ip=client_ip(request))
-    return {"ok": True, "campaign": {"id": campaign.id, "name": campaign.name, "status": campaign.status}}
+    return {"ok": True, "campaign": _campaign_out(campaign, db)}
 
 
 def build_bill(campaign: Campaign, db: Session) -> dict:
@@ -373,6 +477,9 @@ def build_bill(campaign: Campaign, db: Session) -> dict:
 
 
 @router.get("/campaign/bill")
-def campaign_bill(db: DbDep, user: Annotated[User, Depends(require_permission("bill:view"))]):
-    campaign = db.query(Campaign).order_by(Campaign.id.desc()).first()
+def campaign_bill(db: DbDep, user: Annotated[User, Depends(require_permission("bill:view"))],
+                  campaign_id: int | None = None):
+    campaign = db.get(Campaign, campaign_id) if campaign_id else get_current_campaign(db)
+    if not campaign:
+        raise HTTPException(status_code=404, detail="活动不存在")
     return {"bill": campaign.bill or build_bill(campaign, db)}

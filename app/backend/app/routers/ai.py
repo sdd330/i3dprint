@@ -13,7 +13,9 @@ from sqlalchemy.orm import Session
 from ..core.config import settings
 from ..core.database import get_db
 from ..core.security import get_current_user
-from ..models import Campaign, User
+from ..models import Campaign
+from ..models.entities import User
+from ..services.campaign_service import get_current_campaign
 from ..services.config_service import get_activity_config
 from ..services.cost import append_api_usage
 from ..services.val1 import analyze_mesh, build_preset, run_val1
@@ -36,7 +38,7 @@ class GenerateIn(BaseModel):
 
 @router.post("/generate")
 def ai_generate(body: GenerateIn, db: DbDep, user: UserDep):
-    campaign = db.query(Campaign).order_by(Campaign.id.desc()).first()
+    campaign = get_current_campaign(db)
     config = get_activity_config(db, campaign) if campaign else {}
 
     # 匹配生成类型（真实 Tripo：text-to-3d；demo：程序化生成）

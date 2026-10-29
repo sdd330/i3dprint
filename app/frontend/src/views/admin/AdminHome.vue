@@ -210,6 +210,7 @@ onMounted(load)
           <el-button v-if="campaign?.status === '开放中'" type="warning" @click="transitionCampaign('收尾中')">收尾（停止接单）</el-button>
           <el-button v-if="campaign?.status === '收尾中'" type="danger" @click="transitionCampaign('已归档')">归档</el-button>
           <el-button v-if="campaign?.status === '已归档' && billingVisible" @click="showBill">查看活动账单</el-button>
+          <el-button @click="router.push('/admin/campaigns')">活动管理（新建 / 切换场次）→</el-button>
         </div>
       </div>
     </div>

@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 from ..core.database import get_db
 from ..core.security import require_permission
 from ..models import Campaign
+from ..services.campaign_service import get_current_campaign
 from ..models.entities import User
 from ..services.config_service import get_activity_config
 from ..services.print_service import printer_snapshot
@@ -23,6 +24,6 @@ router = APIRouter(prefix="/api", tags=["printers"])
 def list_printers(db: Annotated[Session, Depends(get_db)],
                   user: Annotated[User, Depends(require_permission("printer:read"))]):
     """设备清单（配置中心可增删/启停）+ 运行时忙闲状态 + 打印范围。"""
-    campaign = db.query(Campaign).order_by(Campaign.id.desc()).first()
+    campaign = get_current_campaign(db)
     cfg = get_activity_config(db, campaign) if campaign else {}
     return {"printers": printer_snapshot(cfg)}

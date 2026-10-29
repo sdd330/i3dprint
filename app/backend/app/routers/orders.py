@@ -19,7 +19,9 @@ from sqlalchemy.orm import Session
 from ..core.database import get_db
 from ..core.dynamic_settings import get_setting
 from ..core.security import client_ip, get_current_user, write_audit
+from ..models import Campaign
 from ..models import Campaign, CostLedger, Model, ModelVersion, Order, PrintJob, Review, User
+from ..services.campaign_service import get_current_campaign
 from ..services.config_service import get_activity_config
 from ..services.print_requirement import build_manifest, color_name, estimate, material_colors, merge_params
 from ..services.state_machine import StateError, assert_campaign_open, transition
@@ -112,7 +114,7 @@ def list_orders(db: DbDep, user: UserDep):
 
 @router.post("/orders")
 def create_order(db: DbDep, user: UserDep, request: Request, body: dict | None = None):
-    campaign = db.query(Campaign).order_by(Campaign.id.desc()).first()
+    campaign = get_current_campaign(db)
     if not campaign:
         raise HTTPException(status_code=409, detail="暂无活动")
     try:

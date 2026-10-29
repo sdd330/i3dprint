@@ -42,11 +42,13 @@ TRANSITIONS = {
     "val2_failed": ["print_config", "modeling", "terminated"],
 }
 
+# 活动状态流转（§12.1）
+# 2026-10：允许"回退"——收尾中/已归档都能重新开放（误点归档不该让整场活动报废）
 CAMPAIGN_TRANSITIONS = {
     "待开放": ["开放中"],
     "开放中": ["收尾中"],
-    "收尾中": ["已归档"],
-    "已归档": [],
+    "收尾中": ["已归档", "开放中"],
+    "已归档": ["开放中"],
 }
 
 TERMINAL = {"completed", "terminated"}

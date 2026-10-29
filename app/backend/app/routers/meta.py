@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from ..core.database import get_db
 from ..models import Campaign
+from ..services.campaign_service import get_current_campaign
 from ..services.config_service import get_activity_config, get_sources
 from ..services.print_requirement import strength_tiers
 
@@ -15,7 +16,7 @@ router = APIRouter()
 
 @router.get("/bootstrap")
 def bootstrap(db: Annotated[Session, Depends(get_db)]):
-    campaign = db.query(Campaign).order_by(Campaign.id.desc()).first()
+    campaign = get_current_campaign(db)
     cfg = get_activity_config(db, campaign) if campaign else {}
     return {
         "campaign": {

@@ -10,7 +10,10 @@ from sqlalchemy.orm import Session
 
 from ..core.database import get_db
 from ..core.security import get_current_user
-from ..models import Campaign, QaKnowledge, QaTicket, User
+from ..models import Campaign
+from ..models import Campaign, QaKnowledge, QaTicket
+from ..models.entities import User
+from ..services.campaign_service import get_current_campaign
 from ..services.config_service import get_activity_config
 from ..services.cost import append_api_usage
 from ..services.qa_service import ask
@@ -28,7 +31,7 @@ class AskIn(BaseModel):
 
 @router.post("/ask")
 def qa_ask(body: AskIn, db: DbDep, user: UserDep):
-    campaign = db.query(Campaign).order_by(Campaign.id.desc()).first()
+    campaign = get_current_campaign(db)
     config = get_activity_config(db, campaign) if campaign else {}
     result = ask(db, user, body.question, body.step, config)
     if result.get("usage"):
