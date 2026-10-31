@@ -9,9 +9,9 @@ import { useAppStore } from '@/stores'
 const app = useAppStore()
 const billingVisible = computed(() => app.billingVisible)
 
-const CATS = [
+const CATS_BASE = [
   { key: 'activity', name: '活动参数' },
-  { key: 'fee', name: '费用参数' },
+  { key: 'fee', name: '材料与耗材' },
   { key: 'val1', name: 'Val1 阈值' },
   { key: 'strength_tiers', name: '强度档（打印需求）' },
   { key: 'presets', name: '旧参数档（暂缓）' },
@@ -19,6 +19,9 @@ const CATS = [
   { key: 'compliance', name: '合规配置' },
   { key: 'qa', name: '站娘配置' },
 ]
+// 计费隐藏时把「材料与耗材」明确成材料配置（价格/系数/维护费等不展示）
+const CATS = computed(() => CATS_BASE.map(c =>
+  c.key === 'fee' && !billingVisible.value ? { ...c, name: '材料与耗材' } : c))
 const scope = ref('campaign')   // 默认编辑「当前活动」副本，改动立刻对学生端生效
 const active = ref('activity')
 const template = ref(null)
@@ -205,12 +208,14 @@ onMounted(async () => {
             </el-form-item>
           </el-form>
 
-          <!-- ② 费用参数 -->
-          <el-alert v-if="active === 'fee' && !billingVisible" type="info" :closable="false" show-icon style="margin-bottom: 10px"
-                    title="计费相关配置已暂时隐藏"
-                    description="价格、系数、换料补偿、维护费、重打比例、API 单价暂不显示；材料的名称/密度/有货颜色仍可维护。" />
-          <div v-else-if="active === 'fee'">
-            <div style="font-weight: 600; margin-bottom: 6px">材料价格表（§11.1：成本价 × 重量 × 系数）</div>
+          <!-- ② 材料与耗材（计费部分在 billing 隐藏时不展示） -->
+          <template v-else-if="active === 'fee'">
+            <el-alert type="info" :closable="false" show-icon style="margin-bottom: 10px"
+                      :title="billingVisible ? '材料与计费' : '材料配置（计费部分已暂时隐藏）'"
+                      :description="billingVisible
+                        ? '材料价格/系数、换料补偿、维护费、重打比例、API 单价都在这里维护。'
+                        : '这里维护材料的名称、密度和每种材料的有货颜色（打印需求页直接读）。价格、系数、换料补偿、维护费、重打比例、API 单价暂不显示。'" />
+            <div style="font-weight: 600; margin-bottom: 6px">材料清单（名称 / 密度 / 有货颜色）</div>
             <el-table :data="materials" size="small" border>
               <el-table-column label="ID" width="80">
                 <template #default="{ row }"><el-input v-model="row.id" size="small" /></template>
@@ -275,7 +280,7 @@ onMounted(async () => {
                 <el-input-number v-model="f.fee.api.tripo_per_point" :min="0" :step="0.05" />
               </el-form-item>
             </div>
-          </div>
+          </template>
 
           <!-- ③ Val1 阈值 -->
           <el-form v-else-if="active === 'val1'" label-width="200px" style="max-width: 520px">

@@ -144,6 +144,28 @@ def seed(db: Session):
                               label=label, hint=hint, value_type=vtype, restart_required=restart))
     db.commit()
 
+    # 迁移：活动副本的材料颜色为空时，从默认模板补齐（曾因配置中心保存把 colors 写空）
+    def _backfill_material_colors(cfg: dict, tpl_data: dict) -> bool:
+        mats = ((cfg or {}).get("fee") or {}).get("materials") or []
+        tpl_mats = {m.get("id"): m for m in ((tpl_data or {}).get("fee") or {}).get("materials") or []}
+        changed = False
+        for m in mats:
+            if not m.get("colors"):
+                src = tpl_mats.get(m.get("id")) or {}
+                if src.get("colors"):
+                    m["colors"] = src["colors"]
+                    changed = True
+        return changed
+
+    tpl_row = db.query(ConfigTemplate).filter_by(is_default=True).first()
+    tpl_data = (tpl_row.data if tpl_row else {}) or {}
+    for camp in db.query(Campaign).all():
+        import copy as _c2
+        cfg = _c2.deepcopy(camp.config or {})
+        if _backfill_material_colors(cfg, tpl_data):
+            camp.config = cfg
+    db.commit()
+
     # 迁移：api 单价键 deepseek_* → llm_*（模板与各活动副本）
     def _migrate_api_keys(data: dict) -> bool:
         api = ((data or {}).get("fee") or {}).get("api")

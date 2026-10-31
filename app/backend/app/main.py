@@ -17,11 +17,34 @@ from .seed import seed
 import logging
 
 
+def _snapshot_db() -> None:
+    """启动时给 SQLite 做一份时间点快照：配置被误改/误删时可回滚。"""
+    import shutil
+    from datetime import datetime
+    src = Path(settings.database_url.replace("sqlite:///", "")) if settings.database_url.startswith("sqlite:///") else None
+    if not src or not src.exists() or src.stat().st_size == 0:
+        return
+    backups = Path(settings.data_dir) / "backups"
+    backups.mkdir(parents=True, exist_ok=True)
+    existing = sorted(backups.glob("e3dp-*.db"))
+    import time as _t
+    if existing and _t.time() - existing[-1].stat().st_mtime < 1800:
+        return                                   # 半小时内已有快照，跳过
+    dst = backups / f"e3dp-{datetime.now().strftime('%Y%m%d-%H%M')}.db"
+    try:
+        shutil.copy2(src, dst)
+        for old in existing[:-11]:
+            old.unlink(missing_ok=True)
+    except Exception:
+        pass
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     log = logging.getLogger("uvicorn.error")
     if settings.jwt_secret in ("dev-secret-change-me", "", "dev-secret"):
         log.warning("安全提示：JWT_SECRET 仍是默认值，生产环境务必在「软件设置 → 服务」或环境变量中修改")
+    _snapshot_db()                      # 先备份，再做任何建表/迁移写入
     Base.metadata.create_all(bind=engine)
     with SessionLocal() as db:
         seed(db)
