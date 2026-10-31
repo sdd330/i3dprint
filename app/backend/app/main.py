@@ -9,13 +9,25 @@ from .core.config import settings
 from .core.database import Base, SessionLocal, engine
 from .core.dynamic_settings import load_from_db
 from .seed import seed
+import logging
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    log = logging.getLogger("uvicorn.error")
+    if settings.jwt_secret in ("dev-secret-change-me", "", "dev-secret"):
+        log.warning("安全提示：JWT_SECRET 仍是默认值，生产环境务必在「软件设置 → 服务」或环境变量中修改")
     Base.metadata.create_all(bind=engine)
     with SessionLocal() as db:
         seed(db)
+        try:
+            from .core.security import verify_password
+            from .models import User
+            admin = db.query(User).filter(User.username == "admin").first()
+            if admin and verify_password("admin123", admin.hashed_password):
+                log.warning("安全提示：管理员账号仍是默认口令 admin123，请在「角色管理」里尽快修改")
+        except Exception:
+            pass
         load_from_db(db)  # 加载持久化的软件设置覆盖（环境变量图形化配置）
     yield
 
@@ -23,9 +35,10 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title=settings.app_name, lifespan=lifespan)
 
 # 开发期前端 dev server 跨域（部署后同源托管，可收紧）
+_cors = [o.strip() for o in (settings.cors_origins or "").split(",") if o.strip()]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_origins=_cors or ["http://localhost:5173", "http://127.0.0.1:5173"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

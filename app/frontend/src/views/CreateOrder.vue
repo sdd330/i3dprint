@@ -17,13 +17,6 @@ const fileInput = ref(null)
 const dragOver = ref(false)
 const MAX_MB = 300
 
-const models = [
-  { kind: 'vase', name: '桌面小花瓶', desc: '螺旋纹小花瓶，适合桌面摆放' },
-  { kind: 'robot', name: '可动小机器人', desc: '关节可动的小机器人摆件' },
-  { kind: 'stand', name: '手机支架', desc: '桌面手机支架，横竖屏均可' },
-  { kind: 'penholder', name: '多功能笔筒', desc: '六边形笔筒，可放文具与手机' },
-  { kind: 'spinner', name: '指尖陀螺', desc: '解压指尖陀螺（薄壁款有风险）' },
-]
 const campaign = computed(() => app.meta?.campaign)
 
 onMounted(async () => {
@@ -69,12 +62,6 @@ async function upload(file) {
     uploadState.value.uploading = false
     ElMessage.error(err.message)
   }
-}
-
-async function selectPreset(kind) {
-  const d = await api.post(`/orders/${order.value.id}/select-model`, { preset_kind: kind })
-  order.value = d.order
-  gotoWorkspace()
 }
 
 function gotoWorkspace() {
@@ -145,21 +132,6 @@ function gotoWorkspace() {
           </div>
         </el-tab-pane>
 
-        <!-- 内置演示模型 -->
-        <el-tab-pane name="preset">
-          <template #label>
-            <span style="font-weight: 700">内置演示模型</span>
-            <span class="muted" style="font-size: 12px; font-weight: 400">快速体验</span>
-          </template>
-          <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 14px; padding: 6px 2px">
-            <div v-for="m in models" :key="m.kind" class="card" style="cursor: pointer; padding: 14px; transition: transform .15s; margin: 0"
-                 @mouseenter="$event.target.style.transform = 'translateY(-2px)'"
-                 @mouseleave="$event.target.style.transform = ''" @click="selectPreset(m.kind)">
-              <div style="font-weight: 700; margin-top: 6px">{{ m.name }}</div>
-              <div class="muted" style="font-size: 12.5px">{{ m.desc }}</div>
-            </div>
-          </div>
-        </el-tab-pane>
       </el-tabs>
     </template>
 

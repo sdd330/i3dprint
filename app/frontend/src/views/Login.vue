@@ -39,11 +39,11 @@ async function submit() {
       </p>
       <el-form label-position="top" @submit.prevent>
         <el-form-item label="学号 / 用户名">
-          <el-input v-model="form.username" placeholder="如 20260001（demo 学生）" />
+          <el-input v-model="form.username" placeholder="学号 / 用户名" />
         </el-form-item>
         <el-form-item label="密码">
           <el-input v-model="form.password" type="password" show-password
-                    placeholder="demo 学生 123456 / 负责人 admin123" />
+                    placeholder="密码" />
         </el-form-item>
         <template v-if="mode === 'register'">
           <el-form-item label="姓名"><el-input v-model="form.name" /></el-form-item>
@@ -59,11 +59,6 @@ async function submit() {
         <el-link type="primary" @click="mode = mode === 'login' ? 'register' : 'login'">
           {{ mode === 'login' ? '去登记' : '去登录' }}
         </el-link>
-      </div>
-      <el-divider><span style="font-size: 12px" class="muted">演示账号</span></el-divider>
-      <div style="font-size: 12.5px; color: var(--ink-soft); line-height: 1.9">
-        学生：20260001 / 123456（小陈）· 20260002（阿宁）· 20260003（小周）<br />
-        负责人：admin / admin123（老韩）
       </div>
     </div>
   </div>

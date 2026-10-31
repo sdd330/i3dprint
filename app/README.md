@@ -1,4 +1,4 @@
-# E3DP · 校园3D打印活动平台（短期活动版）
+# Violet Print · 校园 3D 打印自助平台
 
 基于《校园3D打印平台设计-短期活动版.docx》（17章）与 `../实现决策清单.md`（14 项决策 + 站娘补充全部已定）实现的全功能首版。
 
@@ -135,11 +135,54 @@ cd backend/native && ./build.sh      # macOS 出 universal2（x86_64+arm64），
 | `TRIPO_API_KEY` | 空 | AI 建模真实调用（未接时为程序化演示） |
 | `ORCA_SLICER_PATH` / `SLICER_MOCK` | orca-slicer / true | 服务端切片器；POC 后关闭 mock |
 
-## 生产部署（活动期间）
+## 生产部署（Violet Print）
 
-1. `npm run build` 产出 `frontend/dist`，后端自动托管（`FRONTEND_DIST` 指向它）——同源部署，无需 CORS
-2. 单机 + 内网穿透（frp / cloudflared / ngrok）暴露公网，穿透工具自带 HTTPS
-3. 修改 `JWT_SECRET`、配置 DeepSeek/Tripo key、按采购价填配置中心费用表
+> 当前仓库即为**生产形态**：不再内置演示模型、不再生成演示订单/账号，`backend/kb/` 的教材知识库随代码发布。
+
+### 1. 准备环境
+
+```bash
+cd app/backend
+python3 -m venv .venv && ./.venv/bin/pip install -r requirements.txt
+cp .env.example .env          # 按需改：JWT_SECRET / CORS_ORIGINS / LLM_* 等
+cd ../native && ./build.sh    # 可选：编译原生 STL 解析器（不编译会自动回退 numpy）
+```
+
+必改项（启动时会告警提醒）：
+- `E3DP_JWT_SECRET`：换成 32+ 位随机串（`openssl rand -hex 32`）
+- 管理员默认口令 `admin123`：登录后立刻在「角色管理」里改
+- `E3DP_CORS_ORIGINS`：同源部署可留空；前后端分离时填实际域名
+
+### 2. 构建前端并由后端同源托管
+
+```bash
+cd app/frontend && npm ci && npm run build     # 产出 dist/
+cd ../backend && ./.venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000
+```
+
+后端默认从 `frontend/dist` 托管静态资源，同源部署无需 CORS。单机 + 内网穿透（frp / cloudflared）即可对外，穿透工具自带 HTTPS。
+
+### 3. 上线前检查清单
+
+| 项 | 位置 | 说明 |
+|---|---|---|
+| 活动信息 | 负责人 → 活动管理 | 新建本场活动（参数可继承默认模板）、设置开放/收尾时间、取件密码 |
+| 打印机 | 配置中心 → 打印/设备 | 按实际台数增删；编号保持稳定（如 x1c-01），停用不影响历史任务 |
+| 材料与颜色 | 配置中心 → 费用参数 | 维护有货材料、密度、**每种材料的颜色清单** |
+| 强度档 | 配置中心 → 强度档 | 学生端打印需求页直接读这里 |
+| AI 对话 | 软件设置 → 外部服务 / 站娘配置 → 对话模型 | 填 OpenAI 兼容端点（生产建议非思考模式在线模型）+ 选模型 + 试跑 |
+| 向量检索 | 软件设置 → 外部服务 | embedding 端点与模型；「站娘配置 → 教材知识库」强制重建一次 |
+| 上传上限 / 解析超时 | 软件设置 → 服务 | 按机器配置调整 |
+
+### 4. 数据清理（切换生产前跑一次）
+
+```bash
+cd app/backend
+./.venv/bin/python -m app.tools.reset_data --dry-run     # 先看会删什么
+./.venv/bin/python -m app.tools.reset_data --yes         # 清订单/模型/流水/日志/上传与切片文件
+```
+
+保留：用户、活动与配置、角色权限、软件设置、站娘知识库与向量索引。
 
 ## 目录结构
 

@@ -222,17 +222,11 @@ def seed(db: Session):
     if db.query(User).count() == 0:
         admin_role = db.query(Role).filter_by(code="admin").first()
         stu_role = db.query(Role).filter_by(code="student").first()
-        users = [
-            User(username="admin", name="负责人 · 老韩", grade="研二", contact="admin@stu.edu.cn",
+        # 只创建管理员；学生账号由学生自助注册（/api/auth/register）或负责人在角色管理中创建
+        db.add_all([
+            User(username="admin", name="平台负责人", grade="", contact="admin@stu.edu.cn",
                  hashed_password=hash_password("admin123"), role_id=admin_role.id),
-            User(username="20260001", name="小陈", grade="大一", contact="chen@stu.edu.cn",
-                 hashed_password=hash_password("123456"), role_id=stu_role.id),
-            User(username="20260002", name="阿宁", grade="大二", contact="ning@stu.edu.cn",
-                 hashed_password=hash_password("123456"), role_id=stu_role.id),
-            User(username="20260003", name="小周", grade="大三", contact="zhou@stu.edu.cn",
-                 hashed_password=hash_password("123456"), role_id=stu_role.id),
-        ]
-        db.add_all(users)
+        ])
         db.commit()
 
     # 站娘知识库初始条目（决策清单 §13：管理端可图形化增删改查）
@@ -280,126 +274,6 @@ def seed(db: Session):
         )
         db.add(campaign)
         db.commit()
-
-        # 示例订单（各阶段演示数据）
-        users = {u.username: u for u in db.query(User).all()}
-        stu1, stu2, stu3 = users["20260001"], users["20260002"], users["20260003"]
-        from datetime import datetime, timedelta
-        t = datetime.utcnow()
-
-        # 内置演示模型（与前端 Workspace 一致）
-        from .services.val1 import analyze_mesh, build_preset
-        presets = {}
-        for kind in ("vase", "stand", "spinner"):
-            mesh = build_preset(kind)
-            presets[kind] = analyze_mesh(mesh)
-        m_vase = Model(owner_id=stu1.id, name="内置模型 · vase", kind="preset")
-        db.add(m_vase); db.flush()
-        db.add(ModelVersion(model_id=m_vase.id, version=1, file_path="preset:vase", stats=presets["vase"]))
-        m_stand = Model(owner_id=stu2.id, name="内置模型 · stand", kind="preset")
-        db.add(m_stand); db.flush()
-        db.add(ModelVersion(model_id=m_stand.id, version=1, file_path="preset:stand", stats=presets["stand"]))
-        m_spin = Model(owner_id=stu3.id, name="内置模型 · spinner", kind="preset")
-        db.add(m_spin); db.flush()
-        db.add(ModelVersion(model_id=m_spin.id, version=1, file_path="preset:spinner", stats=presets["spinner"]))
-        db.flush()
-
-        def iso(dt): return dt.isoformat(timespec="seconds")
-
-        # O1 已完成（vase；新链路：Val1 → 打印需求 → 清单 → 打印 → 验收 → 核算）
-        o1 = Order(campaign_id=campaign.id, user_id=stu1.id, model_id=m_vase.id,
-                   model_version_id=db.query(ModelVersion).filter_by(model_id=m_vase.id).first().id,
-                   name="内置模型 · vase", status="completed", material_id="pla", color="#2B6CB0",
-                   params={"strength": "standard", "strength_name": "标准", "supports": "auto",
-                           "layer_height": 0.2, "wall_loops": 2, "infill_density": 20, "infill_pattern": "grid"},
-                   placement={"rotation": [0, 0, 0], "scale": 1, "position": [0, 0, 0]},
-                   geometry={"bbox": presets["vase"]["bbox"]},
-                   val1={"result": "通过", "summary": "模型满足制造条件，可通过", "stats": presets["vase"],
-                         "flagged": False, "flagged_items": []},
-                   cost={"filament": 2.54, "maintenance": 0.7, "api": 0, "total": 3.24},
-                   timeline=[
-                       {"t": iso(t - timedelta(days=2)), "status": "draft", "note": "创建打印需求"},
-                       {"t": iso(t - timedelta(days=2)), "status": "modeling", "note": "完成模型摆放：吸底 + 自动摆放"},
-                       {"t": iso(t - timedelta(days=2)), "status": "val1_pending", "note": "提交 Val1 自动审核"},
-                       {"t": iso(t - timedelta(days=2)), "status": "print_config", "note": "Val1 通过（无潜在问题），进入打印需求配置"},
-                       {"t": iso(t - timedelta(days=2, hours=-1)), "status": "queued", "note": "打印需求已提交（PLA / 标准强度），生成打印清单 #1"},
-                       {"t": iso(t - timedelta(days=1, hours=2)), "status": "printing", "note": "X1C-01 开始打印"},
-                       {"t": iso(t - timedelta(days=1, hours=1)), "status": "val3_pending", "note": "打印完成，等待实物验收"},
-                       {"t": iso(t - timedelta(hours=20)), "status": "settlement", "note": "Val3 验收通过，成本核算"},
-                       {"t": iso(t - timedelta(hours=19)), "status": "completed", "note": "结清，计入活动账单"},
-                   ], created_at=iso(t - timedelta(days=2)))
-        db.add(o1); db.flush()
-        pj1 = PrintJob(order_id=o1.id, seq=1, printer_id="x1c-01", status="done",
-                       est_time_sec=9300, est_weight_g=19.3, actual_weight_g=20.1,
-                       gcode={"source": "estimate", "manifest": {
-                           "order_id": o1.id, "name": o1.name, "material": {"id": "pla", "name": "PLA 聚乳酸"},
-                           "color": o1.color, "strength": {"id": "standard", "name": "标准"},
-                           "bbox": presets["vase"]["bbox"]}},
-                       started_at=iso(t - timedelta(days=1, hours=2)),
-                       ended_at=iso(t - timedelta(days=1, hours=1)), note="清单 #1：PLA · 标准强度 · 19.3g（估算）")
-        db.add(pj1); db.flush()
-        db.add(CostLedger(order_id=o1.id, print_job_id=pj1.id, kind="filament", amount=2.54, reason="打印 #1 耗材费"))
-        db.add(CostLedger(order_id=o1.id, kind="maintenance", amount=0.7, reason="维护费：打印头磨损摊分（§11.2）"))
-        for stage, res, reviewer, note in [
-            ("val1", "通过", "系统", "自动审核全部通过"), ("val3", "通过", "负责人 · 老韩", "结构完整，表面良好")]:
-            db.add(Review(order_id=o1.id, stage=stage, result=res, reviewer=reviewer, note=note))
-
-        # O2 已提交打印需求 → 在打印清单里等负责人执行（stand，自备耗材待检验）
-        o2 = Order(campaign_id=campaign.id, user_id=stu2.id, model_id=m_stand.id,
-                   model_version_id=db.query(ModelVersion).filter_by(model_id=m_stand.id).first().id,
-                   name="内置模型 · stand", status="queued", material_id="petg", color="#38B2AC",
-                   params={"strength": "strong", "strength_name": "坚固", "supports": "auto",
-                           "layer_height": 0.2, "wall_loops": 3, "infill_density": 40, "infill_pattern": "gyroid",
-                           "operator_note": "手机支架承力，请勿减薄壁厚"},
-                   placement={"rotation": [0, 0, 0], "scale": 1, "position": [0, 0, 0]},
-                   geometry={"bbox": presets["stand"]["bbox"]}, self_filament=True,
-                   val1={"result": "通过", "summary": "模型满足制造条件，可通过", "stats": presets["stand"],
-                         "flagged": False, "flagged_items": []},
-                   cost={"filament": 0, "maintenance": 0, "api": 0, "total": 0},
-                   timeline=[
-                       {"t": iso(t - timedelta(hours=5)), "status": "draft", "note": "创建打印需求"},
-                       {"t": iso(t - timedelta(hours=5)), "status": "modeling", "note": "完成模型摆放"},
-                       {"t": iso(t - timedelta(hours=4)), "status": "val1_pending", "note": "提交 Val1"},
-                       {"t": iso(t - timedelta(hours=4)), "status": "print_config", "note": "Val1 通过，进入打印需求配置"},
-                       {"t": iso(t - timedelta(hours=2)), "status": "queued", "note": "打印需求已提交（PETG / 坚固强度），自备耗材待检验"},
-                   ], created_at=iso(t - timedelta(hours=5)))
-        db.add(o2); db.flush()
-        db.add(PrintJob(order_id=o2.id, seq=1, status="blocked", est_time_sec=14100, est_weight_g=11.6,
-                        gcode={"source": "estimate", "manifest": {
-                            "order_id": o2.id, "name": o2.name, "material": {"id": "petg", "name": "PETG 共聚酯"},
-                            "color": o2.color, "strength": {"id": "strong", "name": "坚固"},
-                            "bbox": presets["stand"]["bbox"], "operator_note": "手机支架承力，请勿减薄壁厚"}},
-                        note="清单 #1：PETG · 坚固强度 · 11.6g（估算） · 自备耗材待检验（§16.3）"))
-        db.add(Review(order_id=o2.id, stage="val1", result="通过", reviewer="系统", note="自动审核通过"))
-
-        # O3 Val1 标记潜在问题 → 人工复核队列（不退回用户）
-        o3 = Order(campaign_id=campaign.id, user_id=stu3.id, model_id=m_spin.id,
-                   model_version_id=db.query(ModelVersion).filter_by(model_id=m_spin.id).first().id,
-                   name="内置模型 · spinner", status="val1_review", material_id="pla", color="#D69E2E",
-                   params=None, placement={"rotation": [0, 0, 0], "scale": 1, "position": [0, 0, 0]},
-                   geometry={"bbox": presets["spinner"]["bbox"]},
-                   val1={"result": "警告", "summary": "存在 2 项潜在风险：非流形结构、薄壁 0.6mm",
-                         "flagged": True,
-                         "stats": presets["spinner"],
-                         "flagged_items": [
-                             {"id": "manifold", "name": "非流形结构", "level": "warn", "message": "检测到非流形结构，切片可能出现异常"},
-                             {"id": "wall", "name": "壁厚", "level": "warn", "message": "最小壁厚 0.6mm，接近极限"},
-                         ],
-                         "items": [
-                             {"id": "manifold", "name": "非流形结构", "level": "warn", "message": "检测到非流形结构，切片可能出现异常"},
-                             {"id": "wall", "name": "壁厚", "level": "warn", "message": "最小壁厚 0.6mm，接近极限"},
-                         ]},
-                   cost={"filament": 0, "maintenance": 0, "api": 0, "total": 0},
-                   timeline=[
-                       {"t": iso(t - timedelta(hours=8)), "status": "draft", "note": "创建打印需求"},
-                       {"t": iso(t - timedelta(hours=7)), "status": "modeling", "note": "完成模型摆放"},
-                       {"t": iso(t - timedelta(hours=6)), "status": "val1_pending", "note": "提交 Val1"},
-                       {"t": iso(t - timedelta(hours=6)), "status": "val1_review", "note": "Val1 标记 2 项潜在问题（非流形结构、壁厚），转负责人人工复核（不退回用户）"},
-                   ], created_at=iso(t - timedelta(hours=8)))
-        db.add(o3); db.flush()
-        db.add(Review(order_id=o3.id, stage="val1", result="警告", reviewer="系统", note="非流形 + 薄壁 0.6mm"))
-        db.commit()
-
 
     # 历史数据迁移（在线切片/Val2 暂缓）：旧状态 → 新链路，幂等
     migrate_legacy_statuses(db)

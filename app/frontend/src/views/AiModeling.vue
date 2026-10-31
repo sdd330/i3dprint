@@ -28,13 +28,10 @@ async function generate() {
   }
 }
 
-async function fillToOrder() {
-  // 自动填充到上传环节（§14.1）：创建订单并选择对应内置模型
-  const d = await api.post('/orders', {})
-  orderId.value = d.order.id
-  await api.post(`/orders/${orderId.value}/select-model`, { preset_kind: result.value.kind })
-  ElMessage.success('已填充到新需求，照走 Val1 与打印需求填写（不跳过）')
-  router.push(`/create/${orderId.value}/workspace`)
+function fillToOrder() {
+  // 生产环境没有"程序化演示模型"：生成结果需自行下载，再按上传流程提交
+  ElMessage.info('请下载生成结果，然后在「创建需求 → 上传模型」提交 STL / OBJ')
+  router.push('/create')
 }
 </script>
 
@@ -49,7 +46,6 @@ async function fillToOrder() {
     <div class="card">
       <el-input v-model="desc" type="textarea" :rows="3" placeholder="描述想要的模型，如：一个笔筒 / 机甲小人 / 手机支架…" />
       <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 12px">
-        <span class="muted" style="font-size: 12.5px">提示：可写「花瓶」「机器人」「支架」「笔筒」「陀螺」触发内置演示模型</span>
         <el-button type="primary" :loading="generating" @click="generate">生成模型（按次计费）</el-button>
       </div>
     </div>
@@ -79,8 +75,8 @@ async function fillToOrder() {
             {{ i.name }}：{{ i.message }}
           </div>
           <div style="display: flex; gap: 8px; margin-top: 14px">
-            <el-button type="primary" @click="fillToOrder">自动填充到上传环节 →</el-button>
-            <el-button>下载模型（演示）</el-button>
+            <el-button type="primary" @click="fillToOrder">去上传模型 →</el-button>
+            <el-button>下载模型</el-button>
           </div>
         </div>
       </div>

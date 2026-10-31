@@ -25,7 +25,7 @@ from ..services.campaign_service import get_current_campaign
 from ..services.config_service import get_activity_config
 from ..services.print_requirement import build_manifest, color_name, estimate, material_colors, merge_params
 from ..services.state_machine import StateError, assert_campaign_open, transition
-from ..services.val1 import build_preset, run_val1
+from ..services.val1 import run_val1
 from .auth import _user_out  # noqa: F401  (保持与原路由一致的导入面)
 
 router = APIRouter()
@@ -91,8 +91,7 @@ def _material_from_config(config: dict, material_id: str) -> dict:
 
 
 class SelectModelIn(BaseModel):
-    model_id: int | None = None
-    preset_kind: str | None = None  # 内置演示模型（vase/robot/stand/spinner/penholder/generic）
+    model_id: int | None = None   # 历史模型（模型库中已有的模型）
 
 
 class PlacementIn(BaseModel):
@@ -159,26 +158,11 @@ def select_model(order_id: int, body: SelectModelIn, db: DbDep, user: UserDep):
     order = get_order_or_403(db, order_id, user)
     if order.status not in EDITABLE_MODEL_STATUS:
         raise HTTPException(status_code=409, detail="当前状态不能更换模型")
-    if body.preset_kind:
-        # 内置演示模型：程序化生成 + 真实 trimesh 分析
-        mesh = build_preset(body.preset_kind)
-        from ..services.val1 import analyze_mesh
-        stats = analyze_mesh(mesh)
-        model = Model(owner_id=user.id, name=f"内置模型 · {body.preset_kind}", kind="preset",
-                      description="程序化演示模型")
-        db.add(model)
-        db.flush()
-        version = ModelVersion(model_id=model.id, version=1, file_path=f"preset:{body.preset_kind}",
-                               stats=stats, checks={})
-        db.add(version)
-        db.flush()
-        order.model_id, order.model_version_id = model.id, version.id
-    elif body.model_id:
-        order.model_id = body.model_id
-        mv = db.query(ModelVersion).filter_by(model_id=body.model_id).order_by(ModelVersion.version.desc()).first()
-        order.model_version_id = mv.id if mv else None
-    else:
-        raise HTTPException(status_code=400, detail="请选择模型或指定内置模型")
+    if not body.model_id:
+        raise HTTPException(status_code=400, detail="请先上传模型文件（STL / OBJ）")
+    order.model_id = body.model_id
+    mv = db.query(ModelVersion).filter_by(model_id=body.model_id).order_by(ModelVersion.version.desc()).first()
+    order.model_version_id = mv.id if mv else None
     name = db.get(Model, order.model_id).name
     order.name = name
     transition(order, "modeling", f"选择模型「{name}」，进入摆放调整")
