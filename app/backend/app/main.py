@@ -1,6 +1,7 @@
 # E3DP backend — FastAPI 应用入口
 
 import socket
+import sys
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -37,6 +38,9 @@ async def lifespan(app: FastAPI):
     port = _runtime_port()
     for ip in _lan_ips():
         log.info("局域网访问：http://%s:%s", ip, port)
+    if sys.platform == "darwin":
+        log.info("macOS 提示：若手机/其他电脑打不开而本机能开，多半是「本地网络」隐私授权没给——"
+                 "系统设置 → 隐私与安全性 → 本地网络，把运行本服务的 App（终端/iTerm/mimo 等）打开，然后重启服务")
     yield
 
 
