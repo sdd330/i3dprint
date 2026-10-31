@@ -106,3 +106,37 @@ def set_category(db: Session, scope: str, target_id: int | None, category: str, 
 def get_sources(campaign: Campaign) -> dict:
     cfg = campaign.config or {}
     return cfg.get("_sources", {})
+
+
+def sync_template_from_campaign(db: Session, campaign: Campaign, operator: str = "") -> dict:
+    """把当前活动副本的全部分类同步到默认模板（未来新建活动继承这套基线）。
+
+    · 复制 CATEGORIES 里的每个分类（跳过 _sources 这类内部键）
+    · 每个分类写一条 ConfigAudit（可追溯：谁、什么时候、改了什么）
+    返回 {"synced": [分类...], "campaign": 活动名}
+    """
+    import copy as _copy
+    cfg = dict(campaign.config or {})
+    tpl = get_default_template(db)
+    if not tpl:
+        raise ValueError("默认模板不存在")
+    data = _copy.deepcopy(tpl.data or {})
+    synced = []
+    for cat in CATEGORIES:
+        if cat not in cfg:
+            continue
+        new_value = _copy.deepcopy(cfg[cat])
+        old_value = data.get(cat)
+        if old_value == new_value:
+            continue
+        data[cat] = new_value
+        db.add(ConfigAudit(
+            scope="template", target_id=tpl.id, category=cat, path=cat,
+            old_value=json.dumps(old_value, ensure_ascii=False)[:1000],
+            new_value=json.dumps(new_value, ensure_ascii=False)[:1000],
+            operator=operator,
+        ))
+        synced.append(cat)
+    tpl.data = data
+    db.commit()
+    return {"synced": synced, "campaign": campaign.name, "categories": CATEGORIES}

@@ -44,6 +44,23 @@ def update_template_category(category: str, body: CategoryIn, db: DbDep, user: A
     return {"ok": True}
 
 
+class SyncTemplateIn(BaseModel):
+    campaign_id: int | None = None
+
+
+@router.post("/config/template/from-campaign")
+def sync_template(body: SyncTemplateIn | None = None, db: DbDep = None, user: AdminDep = None):
+    """把指定活动（默认当前活动）的参数同步到默认模板：以后新建活动继承这套基线。"""
+    from ..services.campaign_service import get_current_campaign
+    from ..services.config_service import sync_template_from_campaign
+    cid = (body.campaign_id if body else None)
+    campaign = db.get(Campaign, cid) if cid else get_current_campaign(db)
+    if not campaign:
+        raise HTTPException(status_code=404, detail="活动不存在")
+    result = sync_template_from_campaign(db, campaign, operator=user.username)
+    return {"ok": True, **result}
+
+
 @router.get("/config/campaign/{campaign_id}")
 def get_campaign_config(campaign_id: int, db: DbDep, user: AdminDep):
     campaign = db.get(Campaign, campaign_id)

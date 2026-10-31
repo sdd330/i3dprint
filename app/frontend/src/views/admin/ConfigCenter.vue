@@ -2,7 +2,7 @@
 // 配置中心（决策清单 §14）：默认模板 + 活动参数副本（可选继承）+ 修改审计
 // 全部参数图形化编辑：下拉 / 填空 / 数字 / 表格增删行
 import { ref, reactive, onMounted, computed, watch } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { api } from '@/api'
 import { useAppStore } from '@/stores'
 
@@ -99,6 +99,22 @@ function collect() {
   return JSON.parse(JSON.stringify(c))
 }
 
+// 把当前活动的全部分类同步到默认模板（以后新建活动继承这套基线）
+async function syncFromCampaign() {
+  await ElMessageBox.confirm(
+    '把「当前活动」的全部参数（活动/材料/强度档/打印设备/阈值/合规/站娘）同步到默认模板？\n'
+    + '只影响以后新建的活动，正在跑的活动不受影响。',
+    '同步到默认模板'
+  )
+  try {
+    const d = await api.post('/admin/config/template/from-campaign', {})
+    ElMessage.success(d.synced.length ? `已同步：${d.synced.join('、')}` : '模板已经是最新的')
+    load()
+  } catch (e) {
+    ElMessage.error(e.message)
+  }
+}
+
 async function save() {
   const url = scope.value === 'template'
     ? `/admin/config/template/${active.value}`
@@ -185,7 +201,10 @@ onMounted(async () => {
             <b>{{ CATS.find(c => c.key === active)?.name }} ·
               <span class="muted" style="font-weight: 400">{{ scope === 'template' ? '默认模板（全局基线，只影响新建活动）' : '当前活动副本（改动立刻对学生端生效）' }}</span>
             </b>
-            <el-button type="primary" @click="save">保存</el-button>
+            <div style="display: flex; gap: 8px">
+              <el-button v-if="scope === 'template'" @click="syncFromCampaign">从当前活动同步全部</el-button>
+              <el-button type="primary" @click="save">保存</el-button>
+            </div>
           </div>
 
           <el-alert v-if="scope === 'template'" type="warning" :closable="false" show-icon style="margin-bottom: 12px"
