@@ -102,8 +102,8 @@ APP_SETTINGS_META = [
     ("tripo_api_key", "external", "Tripo API Key", "AI 建模真实调用（留空为程序化演示）", "secret", False),
     ("llm_base_url", "external", "AI 对话 Endpoint", "任意 OpenAI 兼容地址，如 LM Studio http://127.0.0.1:1234/v1、DeepSeek https://api.deepseek.com/v1；留空则用下方 DeepSeek 旧配置", "str", False),
     ("llm_api_key", "external", "AI 对话 API Key", "本地模型（LM Studio/Ollama）一般留空；云端服务填 key", "secret", False),
-    ("llm_max_concurrent", "external", "对话并发上限", "本地模型（LM Studio）通常只能同时跑 1 个请求；多人同时提问会排队，避免互相拖死", "int", False),
-    ("llm_queue_timeout_sec", "external", "排队超时（秒）", "超过则提示用户稍后再问（防止请求堆积）", "int", False),
+    ("llm_max_concurrent", "external", "对话并发上限（0=自动）", "0=自动按端点判定：本地端点(LM Studio/Ollama) 1 个并发，在线 API（如非思考模式 ds-flash）4 个并发；填 >0 则强制指定", "int", False),
+    ("llm_queue_timeout_sec", "external", "排队超时（秒）", "0/留空=自动（本地 40s / 在线 25s）；超过则提示用户稍后再问，避免请求堆积", "int", False),
     ("llm_model", "external", "AI 对话模型", "留空则自动取 /v1/models 中第一个对话模型；可在「站娘配置 → 对话模型」里一键切换", "str", False),
     ("embedding_enabled", "external", "启用本地向量检索", "站娘知识库用 embedding 做语义检索；关闭则回退 TF-IDF 词袋检索", "bool", False),
     ("embedding_base_url", "external", "Embedding 服务地址", "LM Studio 本地服务，形如 http://127.0.0.1:1234/v1（OpenAI 兼容）", "str", False),
@@ -139,6 +139,13 @@ def seed(db: Session):
                 val = encrypt_secret(val)  # secret 加密落库
             db.add(AppSetting(key=key, value=val, category=cat,
                               label=label, hint=hint, value_type=vtype, restart_required=restart))
+    db.commit()
+
+    # 迁移：并发/超时改为"0=自动"后，把旧默认值 1 / 40 迁成 0（只迁移仍是旧默认的行）
+    for key, old in (("llm_max_concurrent", "1"), ("llm_queue_timeout_sec", "40")):
+        row = db.query(AppSetting).filter_by(key=key).first()
+        if row and (row.value or "").strip() == old:
+            row.value = "0"
     db.commit()
 
     # 清理历史 DeepSeek 专用设置（2026-10 起统一用通用 llm_base_url / llm_api_key / llm_model）

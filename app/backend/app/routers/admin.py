@@ -321,7 +321,7 @@ def val3_review(order_id: int, body: Val3In, db: DbDep,
 @router.get("/llm/status")
 def llm_status(user: Annotated[User, Depends(require_permission("qa:manage"))]):
     """当前对话端点与模型列表（含可达性、已装载模型）。"""
-    from ..services.llm import llm_conf, list_models, resolve_model
+    from ..services.llm import is_local_endpoint, llm_conf, list_models, queue_stats, resolve_model
     conf = llm_conf()
     info = list_models(conf)
     return {
@@ -333,6 +333,8 @@ def llm_status(user: Annotated[User, Depends(require_permission("qa:manage"))]):
         "chat_models": info["chat_models"],
         "all_models": info["models"],
         "error": info.get("error"),
+        "endpoint_kind": "local" if is_local_endpoint(conf["base_url"]) else "remote",
+        "queue": queue_stats(),
     }
 
 

@@ -75,11 +75,44 @@ _waiting = 0
 _running = 0
 
 
+# 本地端点特征（LM Studio / Ollama / 局域网自建）：并发必须收紧，否则互相拖死
+_LOCAL_HOSTS = ("localhost", "127.0.0.1", "0.0.0.0", "::1", "host.docker.internal")
+LOCAL_MAX_CONCURRENT = 1     # 本地模型：一个请求占用整卡/整机
+REMOTE_MAX_CONCURRENT = 4    # 在线 API（生产用非思考模式 ds-flash 等）：可并发
+LOCAL_TIMEOUT_SEC = 40
+REMOTE_TIMEOUT_SEC = 25      # 在线模型响应快，排队太久不如直接提示稍后再问
+
+
+def _is_private_host(host: str) -> bool:
+    """私有网段（10/8、192.168/16、172.16-31/12）也按本地处理：多半是局域网自建单机服务。"""
+    parts = host.split(".")
+    if len(parts) != 4 or not all(p.isdigit() for p in parts):
+        return False
+    a, b = int(parts[0]), int(parts[1])
+    return a == 10 or (a == 192 and b == 168) or (a == 172 and 16 <= b <= 31)
+
+
+def is_local_endpoint(base_url: str | None = None) -> bool:
+    """判断端点是不是本机/局域网自建（决定并发策略）。"""
+    url = (base_url if base_url is not None else llm_conf()["base_url"]) or ""
+    host = url.lower()
+    for prefix in ("http://", "https://"):
+        if host.startswith(prefix):
+            host = host[len(prefix):]
+    host = host.split("/")[0].split(":")[0]
+    return host in _LOCAL_HOSTS or host.endswith(".local") or _is_private_host(host)
+
+
 def _limits() -> tuple[int, int]:
+    """(并发上限, 排队超时秒)。`llm_max_concurrent=0` 时按端点类型自动取值。"""
     from ..core.config import settings as st
-    size = max(1, int(get_setting("llm_max_concurrent", st.llm_max_concurrent)))
-    timeout = max(5, int(get_setting("llm_queue_timeout_sec", st.llm_queue_timeout_sec)))
-    return size, timeout
+    conf = llm_conf()
+    local = is_local_endpoint(conf["base_url"])
+    raw = int(get_setting("llm_max_concurrent", st.llm_max_concurrent) or 0)
+    size = raw if raw > 0 else (LOCAL_MAX_CONCURRENT if local else REMOTE_MAX_CONCURRENT)
+    default_timeout = LOCAL_TIMEOUT_SEC if local else REMOTE_TIMEOUT_SEC
+    timeout = max(5, int(get_setting("llm_queue_timeout_sec", st.llm_queue_timeout_sec) or default_timeout))
+    return max(1, size), timeout
 
 
 def _semaphore() -> _threading.BoundedSemaphore:
@@ -95,7 +128,11 @@ def _semaphore() -> _threading.BoundedSemaphore:
 
 def queue_stats() -> dict:
     size, timeout = _limits()
-    return {"max_concurrent": size, "running": _running, "waiting": _waiting, "queue_timeout_sec": timeout}
+    conf = llm_conf()
+    return {"max_concurrent": size, "running": _running, "waiting": _waiting,
+            "queue_timeout_sec": timeout,
+            "endpoint_kind": "local" if is_local_endpoint(conf["base_url"]) else "remote",
+            "auto_concurrency": int(get_setting("llm_max_concurrent", settings.llm_max_concurrent) or 0) == 0}
 
 
 def _client() -> httpx.Client:

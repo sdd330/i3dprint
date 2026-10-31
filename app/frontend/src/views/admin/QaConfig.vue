@@ -223,7 +223,9 @@ async function savePrompt() {
               <h3 style="margin: 0 0 4px">对话端点</h3>
               <p class="muted" style="margin: 0; font-size: 12.5px">
                 任意 OpenAI 兼容 <code>/v1</code> 端点（LM Studio、Ollama、DeepSeek、OpenAI、vLLM…）。
-                地址与 API Key 在「软件设置 → 外部服务」里改，这里负责选模型。
+                地址与 API Key 在「软件设置 → 外部服务」里改，这里负责选模型。<br />
+                并发自动判定：本机/局域网端点串行（1），在线 API 并发（4）；可在软件设置里用
+                <code>llm_max_concurrent</code> 覆盖。生产建议用非思考模式的在线模型（如 ds-flash）。
               </p>
             </div>
             <el-button size="small" @click="loadLlm">刷新</el-button>
@@ -238,6 +240,17 @@ async function savePrompt() {
             </el-descriptions-item>
             <el-descriptions-item label="当前模型">{{ llm?.active_model || '（未选择）' }}</el-descriptions-item>
             <el-descriptions-item label="模型数">{{ (llm?.chat_models || []).length }} 个对话模型</el-descriptions-item>
+            <el-descriptions-item label="端点类型">
+              <el-tag size="small" :type="llm?.endpoint_kind === 'local' ? 'info' : 'success'">
+                {{ llm?.endpoint_kind === 'local' ? '本地/局域网' : '在线 API' }}
+              </el-tag>
+              <span class="muted" style="font-size: 12px; margin-left: 6px">
+                自动并发 {{ llm?.queue?.max_concurrent ?? '—' }} · 排队超时 {{ llm?.queue?.queue_timeout_sec ?? '—' }}s
+              </span>
+            </el-descriptions-item>
+            <el-descriptions-item label="当前排队">
+              运行 {{ llm?.queue?.running ?? 0 }} / 等待 {{ llm?.queue?.waiting ?? 0 }}
+            </el-descriptions-item>
           </el-descriptions>
           <el-alert v-if="llm?.error" type="warning" :closable="false" show-icon style="margin-top: 10px"
                     :title="`端点异常：${llm.error}`" description="检查「软件设置 → 外部服务」里的 Endpoint；本地服务需先在 LM Studio 里开启 Local Server。" />

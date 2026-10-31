@@ -51,8 +51,8 @@ class Settings(BaseSettings):
     llm_base_url: str = "http://127.0.0.1:1234/v1"
     llm_api_key: str = ""          # 本地模型通常不需要；云端填 key
     llm_model: str = ""            # 留空=自动取 /v1/models 里第一个对话模型
-    llm_max_concurrent: int = 1    # 本地模型并发上限（LM Studio 一般 1）
-    llm_queue_timeout_sec: int = 40  # 排队超时（超时返回"排队中，稍后再问"）
+    llm_max_concurrent: int = 0    # 0=自动：本地端点 1 / 在线端点 4；>0 手动指定
+    llm_queue_timeout_sec: int = 0   # 0=自动（本地 40s / 在线 25s）
 
     # 向量检索 embedding（2026-10）：本地 LM Studio / 任意 OpenAI 兼容 /v1/embeddings
     embedding_enabled: bool = True
