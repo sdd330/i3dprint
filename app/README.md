@@ -49,6 +49,9 @@ npm run dev        # /api 自动代理到 localhost:8000
 | **取消设备问题半价重打** | Val3 判定设备问题后只进入「重新打印」，不再写 `reprint_rate=0.5`；配置默认 `fee.reprint_rate.MACHINE` / `print.reprint_rate_machine` 同步改 1.0，界面文案统一为「重打」 |
 | **打印机数量可配** | 设备清单进配置中心：`print.printers`（id / 名称 / 型号 / 启用开关，可增删）。`print_service` 只维护运行时忙闲状态，`/api/printers`、`/admin/queues`、`/meta/bootstrap` 全部读配置（此前 `PRINTERS` 写死 2 台，且 `/api/printers` 的路由从未挂载 → 一直 404） |
 | **UI 设计语言更新（Violet Print）** | 全站切换到 Pantone Violet C（#582C83）色系；项目正式名 **Violet Print**，站娘 **薇尔莉特（Violet）**；清除全部 emoji；队徽 `sign.jpg` 用作顶栏 logo + 首页横幅 + 左侧底纹；教程页右上角浮 `tutorial.png` 并在首章引导站娘面板用法；站娘面板改为**右侧抽屉**（平时只露竖排标签+箭头，点击滑出），顶部按对话状态切换 `normal / happy / shocked` 三张立绘；资产经 `sips` 压到合适尺寸放 `public/brand/` |
+| **AI 对话改通用端点（2026-10）** | 去掉 DeepSeek 专用配置：`llm_base_url` / `llm_api_key` / `llm_model` 指向任意 OpenAI 兼容 `/v1`（LM Studio、Ollama、DeepSeek、OpenAI、vLLM）；`GET /admin/llm/status` 列模型（自动过滤 embedding 模型）、`POST /admin/llm/model` 一键切换即时生效、`POST /admin/llm/test` 试跑。界面在「站娘配置 → 对话模型」；历史 `deepseek_*` 设置行启动时自动清理 |
+| **闲聊拉回主题 + 并发排队** | 与打印无关的问题（天气/笑话/写诗）不再查教材也不占用本地模型，直接返回固定话术把话题拉回 3D 打印；领域内问题才走向量/模型。本地模型并发默认 1（`llm_max_concurrent`），用信号量串行 + 排队超时（`llm_queue_timeout_sec` 40s）友好提示；`GET /api/qa/llm/queue` 暴露 running/waiting，站娘面板会显示「前面还有 N 个提问在处理」 |
+| **线下负责人配置修复** | 编辑器把 `members` 数组当字符串绑定，保存后首页 `.join()` 失效——现按「顿号分隔文本 ↔ 数组」双向转换；同时配置中心默认切到「当前活动」副本并提示「编辑默认模板只影响新建活动」，避免"改了不生效" |
 | **教材向量知识库** | 见上「站娘知识库：本地向量检索」小节：`backend/kb/*.md` 自动切块建 TF-IDF 索引，问答命中即引用教材章节，负责人端可同步/调试 |
 | **活动（场次）管理界面** | 新增 `/admin/campaigns`：活动列表（状态/时间窗口/人数上限/取件密码/订单统计/参数来源）、新建（参数可继承默认模板或指定场次）、编辑基本信息、**切换当前活动**、生命周期流转（含「重新开放」，误点归档可恢复）、删除（仅限无订单场次）、账单入口。「当前活动」指针落 `AppSetting.current_campaign_id`，学生端/工作台/配置中心/打印清单统一按它取场次（此前硬编码"最新一场"，无法切换） |
 | **耗材颜色绑定到材料** | 材料增加 `colors` 清单（`#RRGGBB` 或 `{name, hex}`，配置中心「费用参数 → 材料」按材料维护）；打印需求页只展示所选材料**实际有货**的颜色并显示中文名，切换材料自动落到该材料的首个颜色；提交时后端校验颜色属于该材料（否则 400 并列出可选色）；清单/订单/工作台显示颜色名 |

@@ -29,6 +29,13 @@ class AskIn(BaseModel):
     step: str = ""
 
 
+@router.get("/llm/queue")
+def llm_queue(user: UserDep):
+    """本地对话模型的排队状态（前端可提示"正在排队"）。"""
+    from ..services.llm import queue_stats
+    return queue_stats()
+
+
 @router.post("/ask")
 def qa_ask(body: AskIn, db: DbDep, user: UserDep):
     campaign = get_current_campaign(db)

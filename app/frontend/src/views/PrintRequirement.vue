@@ -229,7 +229,7 @@ onMounted(load)
         <!-- 自备耗材 + 备注 -->
         <div class="card">
           <h3 style="margin: 0 0 12px">④ 耗材与备注</h3>
-          <el-switch v-model="form.selfFilament" active-text="自备耗材（§16.3：先放保险柜，检验合格后打印）" />
+          <el-switch v-model="form.selfFilament" active-text="自备耗材（交给负责人，检验合格后打印）" />
           <div style="margin-top: 12px">
             <div class="muted" style="font-size: 12px; margin-bottom: 6px">给执行打印的负责人留言（可写朝向、支撑、用途要求）</div>
             <el-input v-model="form.note" type="textarea" :rows="3" maxlength="500" show-word-limit

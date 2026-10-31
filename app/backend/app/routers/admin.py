@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 
 from ..core.database import get_db
 from ..core.security import client_ip, require_permission, write_audit
-from ..models import Campaign, Issue, Order, PrintJob, Review, User
+from ..models import AppSetting, Campaign, Issue, Order, PrintJob, Review, User
 from ..services.campaign_service import get_current_campaign, list_campaigns, set_current_campaign
 from ..services.config_service import clone_config_for_campaign, get_activity_config
 from ..services.cost import append_cost, calc_filament_fee, settle_order_costs
@@ -314,6 +314,70 @@ def val3_review(order_id: int, body: Val3In, db: DbDep,
     db.commit()
     write_audit(db, user, "val3.review", target=f"O{order.id}", detail=f"fail:{body.issue_type}", ip=client_ip(request))
     return {"ok": True}
+
+
+# ---------- AI 对话模型（通用 OpenAI 兼容端点） ----------
+
+@router.get("/llm/status")
+def llm_status(user: Annotated[User, Depends(require_permission("qa:manage"))]):
+    """当前对话端点与模型列表（含可达性、已装载模型）。"""
+    from ..services.llm import llm_conf, list_models, resolve_model
+    conf = llm_conf()
+    info = list_models(conf)
+    return {
+        "base_url": conf["base_url"],
+        "has_api_key": bool(conf["api_key"]),
+        "configured_model": conf["model"],
+        "active_model": resolve_model(conf),
+        "reachable": info["reachable"],
+        "chat_models": info["chat_models"],
+        "all_models": info["models"],
+        "error": info.get("error"),
+    }
+
+
+class LlmModelIn(BaseModel):
+    model: str
+
+
+@router.post("/llm/model")
+def llm_set_model(body: LlmModelIn, db: DbDep,
+                  user: Annotated[User, Depends(require_permission("qa:manage"))], request: Request):
+    """切换对话模型（写入软件设置 llm_model，即时生效）。"""
+    model = (body.model or "").strip()
+    if not model:
+        raise HTTPException(status_code=400, detail="请选择模型")
+    row = db.get(AppSetting, "llm_model")
+    if row:
+        row.value = model
+    else:
+        db.add(AppSetting(key="llm_model", value=model, category="external",
+                          label="AI 对话模型", hint="可在「站娘配置 → 对话模型」切换", value_type="str"))
+    db.commit()
+    from ..core.dynamic_settings import set_override
+    set_override("llm_model", model)
+    write_audit(db, user, "llm.set_model", target=model, ip=client_ip(request))
+    return {"ok": True, "active_model": model}
+
+
+class LlmTestIn(BaseModel):
+    question: str = "用一句话介绍你自己"
+
+
+@router.post("/llm/test")
+def llm_test(body: LlmTestIn, user: Annotated[User, Depends(require_permission("qa:manage"))]):
+    """试跑一次对话（不写流水、不计费），用于确认端点与模型是否可用。"""
+    import time
+    from ..services.llm import chat as llm_chat, llm_conf, resolve_model
+    t0 = time.time()
+    out = llm_chat([{"role": "user", "content": body.question}], temperature=0.3)
+    elapsed = round((time.time() - t0) * 1000)
+    conf = llm_conf()
+    if not out:
+        return {"ok": False, "elapsed_ms": elapsed, "base_url": conf["base_url"],
+                "error": "端点不可达或未配置模型（看 /admin/llm/status 的错误详情）"}
+    return {"ok": True, "elapsed_ms": elapsed, "model": out["model"],
+            "answer": out["content"], "usage": {"in": out["input_tokens"], "out": out["output_tokens"]}}
 
 
 # ---------- 站娘知识库（向量检索） ----------

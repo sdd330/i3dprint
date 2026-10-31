@@ -46,6 +46,14 @@ class Settings(BaseSettings):
     max_upload_bytes: int = 300 * 1024 * 1024
     # 几何分析超时（秒）：超过返回明确提示，不再无限阻塞
     analysis_timeout_sec: int = 90
+    # AI 对话（2026-10）：任意 OpenAI 兼容端点（LM Studio / DeepSeek / OpenAI / Ollama…）
+    # 留空 base_url 时回退到下面的 deepseek_* 旧配置
+    llm_base_url: str = "http://127.0.0.1:1234/v1"
+    llm_api_key: str = ""          # 本地模型通常不需要；云端填 key
+    llm_model: str = ""            # 留空=自动取 /v1/models 里第一个对话模型
+    llm_max_concurrent: int = 1    # 本地模型并发上限（LM Studio 一般 1）
+    llm_queue_timeout_sec: int = 40  # 排队超时（超时返回"排队中，稍后再问"）
+
     # 向量检索 embedding（2026-10）：本地 LM Studio / 任意 OpenAI 兼容 /v1/embeddings
     embedding_enabled: bool = True
     embedding_base_url: str = "http://127.0.0.1:1234/v1"

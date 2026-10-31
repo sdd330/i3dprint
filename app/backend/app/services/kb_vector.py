@@ -28,6 +28,7 @@ EMBED_BATCH = 16
 CHUNK_MAX_CHARS = 420        # 单块正文上限（过长会稀释相似度）
 CHUNK_MIN_CHARS = 40         # 过短的块（纯标题/目录行）丢弃
 DEFAULT_MIN_SCORE = 0.06     # 稀疏(TF-IDF)命中阈值；稠密阈值见 kb_vector_min_score_dense
+DENSE_MIN_SCORE = 0.34       # 稠密语义阈值（领域内 0.39–0.71；闲聊靠 is_on_topic 闸门拦掉）
 HYBRID_SPARSE_WEIGHT = 0.45  # 混合检索里字面分的权重（综合分 = dense + 0.45 × sparse）
 
 # 中文停用词（短表即可；二元组本身已过滤掉大部分噪声）
@@ -248,6 +249,24 @@ def _cjk_tokens(chars: list[str]) -> list[str]:
     return out
 
 
+# 领域相关词：命中任意一个才认为"这个问题该查教材"。
+# 好处：闲聊（今天天气/讲个笑话）不会误命中教材，交给对话模型去答并引导回主题。
+TOPIC_HINTS = (
+    "打印", "模型", "材料", "耗材", "pla", "petg", "abs", "tpu", "支撑", "填充", "层高", "层",
+    "喷嘴", "喷头", "热床", "平台", "切片", "取件", "订单", "强度", "壁厚", "尺寸", "公差", "配合",
+    "孔", "轴", "胶", "干燥", "受潮", "翘", "堵", "缠", "粘", "黏", "拉丝", "毛刺", "打磨", "后处理",
+    "装配", "夹具", "机器人", "frc", "设计", "cad", "step", "stl", "3mf", "gcode", "bambu", "onshape",
+    "喷漆", "固化", "退火", "螺纹", "倒角", "圆角", "raft", "brim", "速度", "温度", "风扇", "校准",
+    "件", "板", "机", "料",
+)
+
+
+def is_on_topic(question: str) -> bool:
+    """判断问题是否与 3D 打印/本平台相关（粗略但足够拦住闲聊）。"""
+    q = (question or "").lower()
+    return any(h in q for h in TOPIC_HINTS)
+
+
 def _token_weight(token: str) -> float:
     """权重：中文单字 0.45（噪声大）、中文二元组 1.0、英文/数字 1.3（区分度高）"""
     if _CJK_RE.match(token[0]):
@@ -351,7 +370,7 @@ def _search_dense(db: Session, question: str, sources: list[KbSource], top_k: in
     if not qvec:
         return []
     qv = qvec[0]
-    dense_min = float(get_setting("kb_vector_min_score_dense", 0.30))
+    dense_min = float(get_setting("kb_vector_min_score_dense", DENSE_MIN_SCORE))
     sparse_min = float(get_setting("kb_vector_min_score", DEFAULT_MIN_SCORE))
     weight = float(get_setting("kb_vector_hybrid_sparse_weight", HYBRID_SPARSE_WEIGHT))
 
@@ -373,9 +392,11 @@ def _search_dense(db: Session, question: str, sources: list[KbSource], top_k: in
         d_head = _dense_cos(qv, ch.embedding_heading) if ch.embedding_heading else 0.0
         dense = max(d_full, d_head)          # 标题向量通道：解决「答案写在标题里」的情况
         sparse = cosine(sqv, ch.vector or {}) if sqv else 0.0
-        if dense < dense_min and sparse < sparse_min:
-            continue
         literal = sum(1 for b in q_bigrams if b in ch.heading or b in ch.content)
+        # 纯语义命中（没有字面重合）要求更高相似度，避免"沾点边"就抢答
+        need = dense_min if literal else max(dense_min, 0.45)
+        if dense < need and sparse < sparse_min:
+            continue
         bonus = min(0.06, 0.02 * literal)
         scored.append({
             "heading": ch.heading, "content": ch.content,

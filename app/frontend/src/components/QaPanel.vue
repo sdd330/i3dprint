@@ -13,6 +13,7 @@ const messages = ref([
 const input = ref('')
 const open = ref(false)
 const busy = ref(false)
+const queueHint = ref('')   // 本地模型并发上限低，排队时给用户提示
 // 立绘表情：normal（默认）/ happy（命中知识库或夸夸）/ shocked（被拦截、异常）
 const mood = ref('normal')
 const PORTRAIT = {
@@ -38,17 +39,28 @@ async function ask() {
   messages.value.push({ role: 'user', text: q })
   input.value = ''
   busy.value = true
+  queueHint.value = ''
+  // 排队提示：本地模型并发有限（默认 1），先看一眼队列
+  try {
+    const q0 = await api.get('/qa/llm/queue')
+    if ((q0.waiting || 0) > 0 || (q0.running || 0) >= (q0.max_concurrent || 1)) {
+      queueHint.value = `前面还有 ${q0.waiting || 0} 个提问在处理，我会按顺序回答`
+    }
+  } catch { /* 忽略 */ }
   try {
     const d = await api.post('/qa/ask', { question: q, step: step.value })
     messages.value.push({ role: 'bot', text: d.answer })
-    if (d.supervised) setMood('shocked', 4000)
-    else if (ANIM_MOOD[d.animation]) setMood(ANIM_MOOD[d.animation], d.from_kb ? 4000 : 0)
+    if (d.off_topic) setMood('normal', 2500)
+    else if (d.queued) setMood('normal', 2500)
+    else if (d.supervised) setMood('shocked', 4000)
+    else if (ANIM_MOOD[d.animation]) setMood(ANIM_MOOD[d.animation], d.from_kb || d.vector_hit ? 4000 : 0)
     else setMood('normal')
   } catch (e) {
     setMood('shocked', 4000)
     messages.value.push({ role: 'bot', text: '（我这边有点卡住了，稍后再试一次，或者去「使用手册」翻一下。）' })
   } finally {
     busy.value = false
+    queueHint.value = ''
   }
 }
 
@@ -96,7 +108,9 @@ function toggle() {
           <div v-for="(m, i) in messages" :key="i" class="qa-msg" :class="m.role">
             {{ m.text }}
           </div>
-          <div v-if="busy" class="qa-typing">薇尔莉特正在想…</div>
+          <div v-if="busy" class="qa-typing">
+            薇尔莉特正在想…<span v-if="queueHint" style="margin-left: 6px">{{ queueHint }}</span>
+          </div>
         </div>
 
         <div class="qa-input">

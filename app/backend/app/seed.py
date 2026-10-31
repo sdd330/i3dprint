@@ -99,10 +99,12 @@ DEFAULT_TEMPLATE_DATA = {
 
 # 软件全局设置清单（环境变量图形化配置的落地点）
 APP_SETTINGS_META = [
-    ("deepseek_api_key", "external", "DeepSeek API Key", "站娘问答真实调用（留空为模拟回答）", "secret", False),
-    ("deepseek_base_url", "external", "DeepSeek Base URL", "OpenAI 兼容接口地址", "str", False),
-    ("deepseek_model", "external", "DeepSeek 模型", "如 deepseek-chat", "str", False),
     ("tripo_api_key", "external", "Tripo API Key", "AI 建模真实调用（留空为程序化演示）", "secret", False),
+    ("llm_base_url", "external", "AI 对话 Endpoint", "任意 OpenAI 兼容地址，如 LM Studio http://127.0.0.1:1234/v1、DeepSeek https://api.deepseek.com/v1；留空则用下方 DeepSeek 旧配置", "str", False),
+    ("llm_api_key", "external", "AI 对话 API Key", "本地模型（LM Studio/Ollama）一般留空；云端服务填 key", "secret", False),
+    ("llm_max_concurrent", "external", "对话并发上限", "本地模型（LM Studio）通常只能同时跑 1 个请求；多人同时提问会排队，避免互相拖死", "int", False),
+    ("llm_queue_timeout_sec", "external", "排队超时（秒）", "超过则提示用户稍后再问（防止请求堆积）", "int", False),
+    ("llm_model", "external", "AI 对话模型", "留空则自动取 /v1/models 中第一个对话模型；可在「站娘配置 → 对话模型」里一键切换", "str", False),
     ("embedding_enabled", "external", "启用本地向量检索", "站娘知识库用 embedding 做语义检索；关闭则回退 TF-IDF 词袋检索", "bool", False),
     ("embedding_base_url", "external", "Embedding 服务地址", "LM Studio 本地服务，形如 http://127.0.0.1:1234/v1（OpenAI 兼容）", "str", False),
     ("embedding_model", "external", "Embedding 模型", "如 text-embedding-text2vec-bge-large-chinese-i1（留空则自动从 /v1/models 探测）", "str", False),
@@ -137,6 +139,13 @@ def seed(db: Session):
                 val = encrypt_secret(val)  # secret 加密落库
             db.add(AppSetting(key=key, value=val, category=cat,
                               label=label, hint=hint, value_type=vtype, restart_required=restart))
+    db.commit()
+
+    # 清理历史 DeepSeek 专用设置（2026-10 起统一用通用 llm_base_url / llm_api_key / llm_model）
+    for legacy in ("deepseek_api_key", "deepseek_base_url", "deepseek_model"):
+        row = db.query(AppSetting).filter_by(key=legacy).first()
+        if row:
+            db.delete(row)
     db.commit()
 
     # 角色（RBAC，决策清单 §9）
@@ -209,7 +218,7 @@ def seed(db: Session):
             ("取件,取单,密码", "取件", "happy",
              "每场活动有一个「活动密码」，打印完成收到取件通知后，凭活动密码 + 需求编号到指定地点取件。密码每场更新，活动结束失效～"),
             ("自备耗材,自带", "创建需求", "happy",
-             "可以自带耗材：放到平台指定位置（保险柜），负责人检验合格（规格/状态/支持类型）后才开始打印，不合格会暂停任务并通知你。"),
+             "可以自带耗材：交给负责人，检验合格（规格/状态/支持类型）后才开始打印，不合格会暂停任务并通知你。"),
             ("退回,重做,为什么要审核,不通过", "Val1 审核", "think",
              "现在没有「自动退回」了：Val1 发现问题只会在你的订单上打标记并转人工复核，由负责人判断能不能放行。只有负责人明确要求修改模型时，你才需要改模型后重新提交。"),
             ("摆放,旋转,缩放,阵列,吸底,自动摆放", "模型摆放", "happy",

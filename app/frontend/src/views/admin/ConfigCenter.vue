@@ -15,7 +15,7 @@ const CATS = [
   { key: 'compliance', name: '合规配置' },
   { key: 'qa', name: '站娘配置' },
 ]
-const scope = ref('template')
+const scope = ref('campaign')   // 默认编辑「当前活动」副本，改动立刻对学生端生效
 const active = ref('activity')
 const template = ref(null)
 const campaignCfg = ref(null)
@@ -57,6 +57,11 @@ function syncForm() {
   f.strength_tiers = JSON.parse(JSON.stringify(d.strength_tiers || []))
   f.print = { ...f.print, ...(d.print || {}), printers: JSON.parse(JSON.stringify(d.print?.printers || [])) }
   f.compliance = { ...f.compliance, ...(d.compliance || {}), contacts: JSON.parse(JSON.stringify(d.compliance?.contacts || [])) }
+  // 线下负责人：后端存的是成员数组，这里转成一行文本编辑（顿号分隔）
+  f.compliance.contacts = (f.compliance.contacts || []).map(c => ({
+    grade: c.grade || '',
+    members: Array.isArray(c.members) ? c.members.join('、') : (c.members || ''),
+  }))
   f.qa = { ...f.qa, ...(d.qa || {}) }
 }
 
@@ -66,7 +71,14 @@ function switchCat(k) { active.value = k }
 function collect() {
   const c = f[active.value]
   // 文本区转数组
-  if (active.value === 'compliance') c.list = complianceList.value.split('\n').map(s => s.trim()).filter(Boolean)
+  if (active.value === 'compliance') {
+    c.list = complianceList.value.split('\n').map(s => s.trim()).filter(Boolean)
+    // 线下负责人：文本 → 成员数组（顿号/逗号/分号/斜杠分隔）
+    c.contacts = (c.contacts || []).map(x => ({
+      grade: (x.grade || '').trim(),
+      members: String(x.members || '').split(/[、,，;；/|]+/).map(t => t.trim()).filter(Boolean),
+    })).filter(x => x.grade || x.members.length)
+  }
   if (active.value === 'qa') c.filter_words = filterWords.value.split('\n').map(s => s.trim()).filter(Boolean)
   if (active.value === 'fee') {
     c.materials = materials.value.map(({ _colorsText, ...m }) => ({
@@ -161,10 +173,14 @@ onMounted(load)
         <div class="card">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px">
             <b>{{ CATS.find(c => c.key === active)?.name }} ·
-              <span class="muted" style="font-weight: 400">{{ scope === 'template' ? '默认模板（全局基线）' : '当前活动副本（覆盖只影响本场）' }}</span>
+              <span class="muted" style="font-weight: 400">{{ scope === 'template' ? '默认模板（全局基线，只影响新建活动）' : '当前活动副本（改动立刻对学生端生效）' }}</span>
             </b>
             <el-button type="primary" @click="save">保存</el-button>
           </div>
+
+          <el-alert v-if="scope === 'template'" type="warning" :closable="false" show-icon style="margin-bottom: 12px"
+                    title="你正在编辑「默认模板」——它只在**新建活动**时被复制"
+                    description="要让学生端立刻看到改动，请把右上角切到「当前活动」。当前活动已有自己的参数副本，模板改动不会自动同步过去。" />
 
           <!-- ① 活动参数 -->
           <el-form v-if="active === 'activity'" label-width="180px" style="max-width: 560px">

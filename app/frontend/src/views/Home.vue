@@ -21,6 +21,10 @@ const STATUS_META = {
 }
 const [campLabel, campCls] = STATUS_META[campaign?.value?.status] || ['', 'tag-ink']
 const chain = ['创建', '摆放', 'Val1', '打印需求', '打印', 'Val3', '核算']
+// 线下负责人：配置里可能是数组（历史数据）或字符串（旧版编辑器），都兼容
+function memberText(g) {
+  return Array.isArray(g?.members) ? g.members.join(' / ') : (g?.members || '')
+}
 
 onMounted(async () => {
   await app.loadMeta()
@@ -96,7 +100,7 @@ onMounted(async () => {
         <div class="card" style="padding: 16px">
           <div style="font-weight: 700; margin-bottom: 8px">线下负责人（§16.2）</div>
           <div v-for="g in compliance?.contacts || []" :key="g.grade" style="font-size: 13px; margin-bottom: 6px" class="muted">
-            <b style="color: var(--ink)">{{ g.grade }}</b>：{{ g.members.join(' / ') }}
+            <b style="color: var(--ink)">{{ g.grade }}</b>：{{ memberText(g) }}
           </div>
         </div>
         <div class="card" style="padding: 16px" v-if="billingVisible">

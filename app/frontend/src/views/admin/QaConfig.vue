@@ -11,6 +11,50 @@ const qaCfg = ref(null)
 const filterWords = ref('')
 const systemPrompt = ref('')
 
+// —— AI 对话模型（通用 OpenAI 兼容端点：LM Studio / DeepSeek / OpenAI…）——
+const llm = ref(null)
+const llmLoading = ref(false)
+const llmModel = ref('')
+const llmBusy = ref(false)
+const llmTestQ = ref('用一句话说明 PLA 是什么材料')
+const llmTestOut = ref(null)
+
+async function loadLlm() {
+  llmLoading.value = true
+  try {
+    llm.value = await api.get('/admin/llm/status')
+    llmModel.value = llm.value.active_model || ''
+  } catch (e) {
+    llm.value = { reachable: false, error: e.message, chat_models: [] }
+  } finally {
+    llmLoading.value = false
+  }
+}
+async function saveLlmModel() {
+  if (!llmModel.value) return ElMessage.warning('请选择模型')
+  llmBusy.value = true
+  try {
+    await api.post('/admin/llm/model', { model: llmModel.value })
+    ElMessage.success(`已切换对话模型：${llmModel.value}`)
+    loadLlm()
+  } catch (e) {
+    ElMessage.error(e.message)
+  } finally {
+    llmBusy.value = false
+  }
+}
+async function testLlm() {
+  llmBusy.value = true
+  llmTestOut.value = null
+  try {
+    llmTestOut.value = await api.post('/admin/llm/test', { question: llmTestQ.value })
+  } catch (e) {
+    llmTestOut.value = { ok: false, error: e.message }
+  } finally {
+    llmBusy.value = false
+  }
+}
+
 // —— 教材/手册向量知识库（backend/kb/*.md，本地 TF-IDF 检索）——
 const kbSources = ref([])
 const kbBusy = ref(false)
@@ -50,6 +94,7 @@ async function kbTest() {
 
 async function load() {
   loadKb().catch(() => {})
+  loadLlm().catch(() => {})
   items.value = (await api.get('/qa/knowledge')).items
   template.value = (await api.get('/admin/config/template')).template
   qaCfg.value = template.value.data.qa
@@ -168,6 +213,69 @@ async function savePrompt() {
             <div class="muted" style="font-size: 12.5px; margin-top: 4px">{{ h.content.slice(0, 160) }}…</div>
           </div>
           <el-empty v-if="!kbHits.length && kbQuery && !kbSearching" description="未命中（会交给大模型回答）" :image-size="50" />
+        </div>
+      </el-tab-pane>
+
+      <el-tab-pane label="对话模型（LLM）" name="llm">
+        <div class="card" style="margin-bottom: 12px" v-loading="llmLoading">
+          <div style="display: flex; justify-content: space-between; align-items: start; flex-wrap: wrap; gap: 10px">
+            <div>
+              <h3 style="margin: 0 0 4px">对话端点</h3>
+              <p class="muted" style="margin: 0; font-size: 12.5px">
+                任意 OpenAI 兼容 <code>/v1</code> 端点（LM Studio、Ollama、DeepSeek、OpenAI、vLLM…）。
+                地址与 API Key 在「软件设置 → 外部服务」里改，这里负责选模型。
+              </p>
+            </div>
+            <el-button size="small" @click="loadLlm">刷新</el-button>
+          </div>
+          <el-descriptions :column="2" size="small" border style="margin-top: 12px">
+            <el-descriptions-item label="Endpoint">{{ llm?.base_url || '—' }}</el-descriptions-item>
+            <el-descriptions-item label="连通性">
+              <el-tag size="small" :type="llm?.reachable ? 'success' : 'danger'">
+                {{ llm?.reachable ? '可达' : '不可达' }}
+              </el-tag>
+              <span v-if="llm?.has_api_key" class="muted" style="font-size: 12px; margin-left: 6px">已配置 Key</span>
+            </el-descriptions-item>
+            <el-descriptions-item label="当前模型">{{ llm?.active_model || '（未选择）' }}</el-descriptions-item>
+            <el-descriptions-item label="模型数">{{ (llm?.chat_models || []).length }} 个对话模型</el-descriptions-item>
+          </el-descriptions>
+          <el-alert v-if="llm?.error" type="warning" :closable="false" show-icon style="margin-top: 10px"
+                    :title="`端点异常：${llm.error}`" description="检查「软件设置 → 外部服务」里的 Endpoint；本地服务需先在 LM Studio 里开启 Local Server。" />
+        </div>
+
+        <div class="card" style="margin-bottom: 12px">
+          <h3 style="margin: 0 0 8px">切换模型</h3>
+          <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center">
+            <el-select v-model="llmModel" style="width: 340px" placeholder="选择一个对话模型" filterable allow-create>
+              <el-option v-for="m in llm?.chat_models || []" :key="m" :value="m" :label="m" />
+            </el-select>
+            <el-button type="primary" :loading="llmBusy" @click="saveLlmModel">切换并保存</el-button>
+            <span class="muted" style="font-size: 12px">
+              embedding 模型（{{ (llm?.all_models || []).length - (llm?.chat_models || []).length }} 个）已自动过滤，不会出现在这里
+            </span>
+          </div>
+          <p class="muted" style="margin: 8px 0 0; font-size: 12px">
+            也可以直接填一个模型名再点保存（有些服务不返回列表）。切换后站娘问答立即使用新模型。
+          </p>
+        </div>
+
+        <div class="card">
+          <h3 style="margin: 0 0 8px">试跑一次</h3>
+          <div style="display: flex; gap: 8px">
+            <el-input v-model="llmTestQ" placeholder="随便问一句，确认端点和模型可用" @keyup.enter="testLlm" />
+            <el-button type="primary" :loading="llmBusy" @click="testLlm">测试</el-button>
+          </div>
+          <div v-if="llmTestOut" style="margin-top: 10px">
+            <el-alert v-if="!llmTestOut.ok" type="error" :closable="false" show-icon
+                      :title="llmTestOut.error || '调用失败'" />
+            <template v-else>
+              <div class="muted" style="font-size: 12px; margin-bottom: 6px">
+                模型 {{ llmTestOut.model }} · 耗时 {{ llmTestOut.elapsed_ms }}ms ·
+                tokens 入{{ llmTestOut.usage?.in }} / 出{{ llmTestOut.usage?.out }}
+              </div>
+              <div class="card" style="padding: 12px; margin: 0; white-space: pre-wrap">{{ llmTestOut.answer }}</div>
+            </template>
+          </div>
         </div>
       </el-tab-pane>
 
