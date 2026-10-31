@@ -32,6 +32,17 @@ onMounted(async () => {
 
 <template>
   <div class="page">
+    <!-- 品牌横幅：队徽 + Violet Print -->
+    <div class="home-hero">
+      <img src="/brand/sign.jpg" alt="VIOLET Z" class="home-hero-sign" />
+      <div>
+        <h1 class="home-hero-title">Violet Print</h1>
+        <p class="home-hero-sub">
+          校园 3D 打印自助平台 · TEAM 6940 · 非营利，费用只覆盖成本
+        </p>
+      </div>
+    </div>
+
     <div style="display: grid; grid-template-columns: 1.4fr 1fr; gap: 20px" class="home-grid">
       <!-- 左：活动主卡 -->
       <div class="card" style="padding: 28px">
@@ -75,7 +86,7 @@ onMounted(async () => {
       <!-- 右：运营信息 -->
       <div style="display: flex; flex-direction: column; gap: 16px">
         <div class="card" style="padding: 16px">
-          <div style="font-weight: 700; margin-bottom: 8px">📦 取件信息（§16.1）</div>
+          <div style="font-weight: 700; margin-bottom: 8px">取件信息（§16.1）</div>
           <div style="font-size: 13px" class="muted">
             {{ compliance?.pickup_location }}<br />
             时间：{{ compliance?.pickup_window }}<br />
@@ -83,13 +94,13 @@ onMounted(async () => {
           </div>
         </div>
         <div class="card" style="padding: 16px">
-          <div style="font-weight: 700; margin-bottom: 8px">🧑‍🏫 线下负责人（§16.2）</div>
+          <div style="font-weight: 700; margin-bottom: 8px">线下负责人（§16.2）</div>
           <div v-for="g in compliance?.contacts || []" :key="g.grade" style="font-size: 13px; margin-bottom: 6px" class="muted">
             <b style="color: var(--ink)">{{ g.grade }}</b>：{{ g.members.join(' / ') }}
           </div>
         </div>
         <div class="card" style="padding: 16px" v-if="billingVisible">
-          <div style="font-weight: 700; margin-bottom: 8px">🧾 费用构成（§11）</div>
+          <div style="font-weight: 700; margin-bottom: 8px">费用构成（§11）</div>
           <div style="font-size: 13px" class="muted">
             耗材费 = 成本价 × 重量 × 系数（+ 换料补偿）<br />
             维护费（打印头磨损摊分）+ API 用量费<br />

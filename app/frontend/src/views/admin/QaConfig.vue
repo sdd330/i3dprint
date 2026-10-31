@@ -11,7 +11,45 @@ const qaCfg = ref(null)
 const filterWords = ref('')
 const systemPrompt = ref('')
 
+// —— 教材/手册向量知识库（backend/kb/*.md，本地 TF-IDF 检索）——
+const kbSources = ref([])
+const kbBusy = ref(false)
+const kbQuery = ref('')
+const kbHits = ref([])
+const kbSearching = ref(false)
+
+async function loadKb() {
+  kbSources.value = (await api.get('/admin/kb')).sources
+}
+async function syncKb(force = false) {
+  kbBusy.value = true
+  try {
+    const d = await api.post(`/admin/kb/sync${force ? '?force=true' : ''}`, {})
+    const changed = (d.synced || []).filter(x => x.changed)
+    ElMessage.success(changed.length
+      ? `已重建：${changed.map(x => `${x.name}（${x.chunks} 块）`).join('、')}`
+      : '内容未变化，无需重建')
+    loadKb()
+  } catch (e) {
+    ElMessage.error(e.message)
+  } finally {
+    kbBusy.value = false
+  }
+}
+async function kbTest() {
+  if (!kbQuery.value.trim()) return
+  kbSearching.value = true
+  try {
+    kbHits.value = (await api.post('/admin/kb/search', { question: kbQuery.value, top_k: 3 })).hits
+  } catch (e) {
+    ElMessage.error(e.message)
+  } finally {
+    kbSearching.value = false
+  }
+}
+
 async function load() {
+  loadKb().catch(() => {})
   items.value = (await api.get('/qa/knowledge')).items
   template.value = (await api.get('/admin/config/template')).template
   qaCfg.value = template.value.data.qa
@@ -90,6 +128,47 @@ async function savePrompt() {
           </el-table>
         </div>
         <p class="muted" style="font-size: 12.5px; margin-top: 8px">Spine 动画关键字：命中该条时站娘播放对应动画（形象资产后续接入，接口已预留）</p>
+      </el-tab-pane>
+
+      <el-tab-pane label="教材知识库（向量）" name="vector">
+        <div class="card" style="margin-bottom: 12px">
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px">
+            <div>
+              <h3 style="margin: 0 0 4px">教材 / 手册向量索引</h3>
+              <p class="muted" style="margin: 0; font-size: 12.5px">
+                放在 backend/kb/ 下的 Markdown 会被切块并建立 TF-IDF 向量索引；站娘回答时先查关键词条目，
+                未命中则查这里（命中即作答并标注章节出处，不消耗 token）。
+              </p>
+            </div>
+            <div style="display: flex; gap: 8px">
+              <el-button :loading="kbBusy" @click="syncKb(false)">同步（增量）</el-button>
+              <el-button :loading="kbBusy" @click="syncKb(true)">强制重建</el-button>
+            </div>
+          </div>
+          <el-table :data="kbSources" size="small" style="margin-top: 12px">
+            <el-table-column prop="name" label="文件" min-width="220" />
+            <el-table-column prop="chunks" label="切块数" width="90" />
+            <el-table-column prop="tokens" label="词表规模" width="100" />
+            <el-table-column prop="updated_at" label="更新时间" width="180" />
+          </el-table>
+          <el-empty v-if="!kbSources.length" description="还没有导入任何教材（backend/kb/*.md）" :image-size="50" />
+        </div>
+
+        <div class="card">
+          <h3 style="margin: 0 0 8px">检索调试（看看学生会问的问题能不能命中）</h3>
+          <div style="display: flex; gap: 8px">
+            <el-input v-model="kbQuery" placeholder="如：STEP 和 STL 差在哪" @keyup.enter="kbTest" />
+            <el-button type="primary" :loading="kbSearching" @click="kbTest">检索</el-button>
+          </div>
+          <div v-for="(h, i) in kbHits" :key="i" style="border: 1px solid var(--line); border-radius: 8px; padding: 10px; margin-top: 10px">
+            <div style="display: flex; justify-content: space-between; gap: 8px">
+              <b style="font-size: 13px">{{ h.heading }}</b>
+              <span class="mono muted" style="font-size: 12px">相似度 {{ h.score }}</span>
+            </div>
+            <div class="muted" style="font-size: 12.5px; margin-top: 4px">{{ h.content.slice(0, 160) }}…</div>
+          </div>
+          <el-empty v-if="!kbHits.length && kbQuery && !kbSearching" description="未命中（会交给大模型回答）" :image-size="50" />
+        </div>
       </el-tab-pane>
 
       <el-tab-pane label="System Prompt / 过滤词" name="prompt">

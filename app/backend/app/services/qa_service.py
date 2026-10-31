@@ -71,6 +71,17 @@ def _deepseek(messages: list[dict], config: dict) -> dict:
     return {"content": content, "input_tokens": max(50, len(last) // 2), "output_tokens": max(60, len(content) // 2)}
 
 
+def vector_search(db: Session, question: str) -> list[dict]:
+    """教材/手册向量检索（本地 TF-IDF；零外部 API）。"""
+    try:
+        from .kb_vector import search
+        from ..core.dynamic_settings import get_setting
+        min_score = float(get_setting("kb_vector_min_score", 0.12))
+        return search(db, question, top_k=3, min_score=min_score)
+    except Exception:
+        return []
+
+
 def ask(db: Session, user: User | None, question: str, step: str, config: dict) -> dict:
     # 1) 输入过滤（双向检测之一）
     fw = _hit_filter(question, filter_words(config))
@@ -84,6 +95,22 @@ def ask(db: Session, user: User | None, question: str, step: str, config: dict) 
     kb = kb_search(db, question, step)
     if kb:
         return {"answer": kb.answer, "blocked": False, "animation_key": kb.animation_key or "happy", "kb_hit": True, "usage": None}
+
+    # 2.5) 向量知识库（教材/手册切块 + TF-IDF 余弦）→ 命中即作答，带出处，不花 token
+    vec_hits = vector_search(db, question)
+    if vec_hits:
+        top = vec_hits[0]
+        body = top["content"].strip()
+        if len(body) > 700:
+            body = body[:700].rstrip() + "…"
+        others = "；".join(h["heading"] for h in vec_hits[1:3] if h["heading"] != top["heading"])
+        answer = f"（来自教材 · {top['heading']}）\n{body}"
+        if others:
+            answer += f"\n\n相关章节还可以看：{others}"
+        return {"answer": answer, "blocked": False, "animation_key": "magic",
+                "kb_hit": True, "vector_hit": True,
+                "sources": [{"heading": h["heading"], "score": h["score"], "source": h["source"]} for h in vec_hits],
+                "usage": None}
 
     # 3) 大模型回答 + 输出监督
     statement = config.get("compliance", {}).get("statement", "")

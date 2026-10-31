@@ -28,7 +28,7 @@ const previewBBox = ref(null)
 
 function initPreview() {
   scene = new THREE.Scene()
-  scene.background = new THREE.Color(0xf7f5f0)
+  scene.background = new THREE.Color(0xF6F2FB)
   camera = new THREE.PerspectiveCamera(45, 1, 1, 5000)
   camera.position.set(220, 220, 300)
   renderer = new THREE.WebGLRenderer({ antialias: true })
@@ -52,7 +52,7 @@ function initPreview() {
   )
   edges.position.set(0, BUILD / 2, 0)
   scene.add(edges)
-  scene.add(new THREE.GridHelper(BUILD, 8, 0xc9c2b2, 0xe0dbd0))
+  scene.add(new THREE.GridHelper(BUILD, 8, 0xD3C6E8, 0xE9E2F5))
   modelGroup = new THREE.Group()
   scene.add(modelGroup)
   const resize = () => {

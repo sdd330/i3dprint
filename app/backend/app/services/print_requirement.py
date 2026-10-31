@@ -16,28 +16,28 @@ import math
 # 字段名与 OrcaSlicer / AdvancedParamsForm 一致，便于执行人直接录入切片器
 STRENGTH_TIERS = [
     {
-        "id": "light", "name": "轻量", "icon": "🍃",
+        "id": "light", "name": "轻量",
         "desc": "展示摆件、不承力：耗材省、速度快",
         "layer_height": 0.24, "wall_loops": 2, "infill_density": 10,
         "top_shell_layers": 3, "bottom_shell_layers": 3, "infill_pattern": "grid",
         "supports": "auto",
     },
     {
-        "id": "standard", "name": "标准", "icon": "⚖️",
+        "id": "standard", "name": "标准",
         "desc": "日常推荐：质量与强度均衡",
         "layer_height": 0.20, "wall_loops": 2, "infill_density": 20,
         "top_shell_layers": 4, "bottom_shell_layers": 3, "infill_pattern": "grid",
         "supports": "auto",
     },
     {
-        "id": "strong", "name": "坚固", "icon": "🏗️",
+        "id": "strong", "name": "坚固",
         "desc": "功能件、受力件：更厚壁、更高填充",
         "layer_height": 0.20, "wall_loops": 3, "infill_density": 40,
         "top_shell_layers": 5, "bottom_shell_layers": 4, "infill_pattern": "gyroid",
         "supports": "auto",
     },
     {
-        "id": "ultra", "name": "超坚固", "icon": "🛡️",
+        "id": "ultra", "name": "超坚固",
         "desc": "承力结构件：耗材与时间显著增加",
         "layer_height": 0.16, "wall_loops": 4, "infill_density": 60,
         "top_shell_layers": 6, "bottom_shell_layers": 5, "infill_pattern": "cubic",

@@ -8,6 +8,7 @@ const app = useAppStore()
 const billingVisible = computed(() => app.billingVisible)
 
 const SECTIONS = [
+  { id: 'assistant', title: '先学会喊薇尔莉特（Violet · 站娘问答）', body: `这一步最重要：后面卡住了随时能问到人。\n\n· 薇尔莉特（Violet）平时「收在页面右侧边缘」，只露出一条竖排标签「问答 · 薇尔莉特」和一个箭头；\n· 把鼠标移到标签上，点一下（或点箭头），面板会「从右侧滑出」，里面就是站娘问答；\n· 面板顶部是三张立绘之一：待机是普通表情，答对/命中知识库时是开心表情，触及不合规内容或服务异常时是惊讶表情；\n· 想收起面板，点右上角「收起 ›」，或再点右侧标签。\n\n她能回答：材料怎么选、强度档什么意思、模型要满足什么条件、审核到哪一步、多久能取件等。答不上来的问题会转成工单留言，负责人会回复。\n\n右侧这张图就是薇尔莉特本人在给你讲解。` },
   { id: 'flow', title: '打印主链总览', body: `创建打印需求 → 模型摆放（尺寸/姿态）→ Val1 模型自动审核 →（有潜在问题则标记 → 负责人人工复核）→ 填写打印需求（材料/强度/进阶参数）→ 生成打印清单 → 负责人执行打印 → Val3 实物验收 → 结算完成。\n\n当前版本暂不提供在线切片与 Val2 切片核验：打印需求以「清单」形式交给执行打印的负责人，由其在切片软件中落地。\n\n没有模型的同学请先用建模软件（Fusion / Blender / TinkerCAD 等）做好，导出 STL 或 OBJ 再上传；AI 建模入口暂已关闭。` },
   { id: 'val1', title: 'Val1 模型审核（能不能制造）', body: `自动检查：文件完整 / 封闭 / 非流形 / 自交 / 尺寸是否超设备范围（X1C 256×256×256）/ 壁厚 / 悬垂支撑 / 材料匹配 / 参数合理。\n\n没有「自动退回」：\n· 全部通过 → 直接进入打印需求配置。\n· 有潜在问题（警告/不通过项）→ 系统在你的需求上打**标记**并转负责人人工复核，你不需要重做。负责人复核结果：放行 / 要求修改模型 / 不可打印终止。` },
   { id: 'requirement', title: '打印需求与打印清单', body: `在打印需求页选三件事：\n① 材料：PLA 摆件首选，PETG 更韧耐温，ABS 强度高易翘边，TPU 柔性。\n② 强度：轻量（壁厚 2 圈 / 填充 10%）、标准（2 圈 / 20%）、坚固（3 圈 / 40%）、超坚固（4 圈 / 60%）。\n③ 进阶参数：层高、速度、温度、支撑、回抽等（默认按强度档给，需要时再改）。\n\n提交后生成「打印清单」：材料/颜色/强度/参数/尺寸/预估耗材/你的备注。负责人照清单执行打印，清单可在负责人端整页打印出来。\n\n可自带耗材：先放平台保险柜，检验合格后才开始打印。` },
@@ -20,15 +21,19 @@ const SECTIONS = [
 
 // 收费信息暂时隐去时，费用章节不展示
 const sections = computed(() => SECTIONS.filter(s => !s.billingOnly || billingVisible.value))
-const open = ref(['flow', 'place'])
+const open = ref(['assistant', 'flow'])
 
 if (!app.meta) app.loadMeta().catch(() => {})
 </script>
 
 <template>
   <div class="page" style="max-width: 860px">
+    <!-- 教程插图：固定在右上角最上层 -->
+    <img src="/brand/tutorial.png" alt="Violet 讲解" class="tutorial-art" />
     <h1 class="page-title">使用手册</h1>
-    <p class="page-sub">第一层帮助 · 独立手册（§15.1）；逐步骤问题可随时点右下角站娘（第二层），界面内也有 inline 引导（第三层）</p>
+    <p class="page-sub">
+      第一层帮助 · 独立手册（§15.1）｜逐步骤问题可随时展开「右侧站娘问答」（第二层），界面内也有 inline 引导（第三层）
+    </p>
     <el-collapse v-model="open">
       <el-collapse-item v-for="s in sections" :key="s.id" :name="s.id">
         <template #title><b>{{ s.title }}</b></template>

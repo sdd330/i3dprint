@@ -316,6 +316,38 @@ def val3_review(order_id: int, body: Val3In, db: DbDep,
     return {"ok": True}
 
 
+# ---------- 站娘知识库（向量检索） ----------
+
+@router.get("/kb")
+def kb_status(db: DbDep, user: Annotated[User, Depends(require_permission("qa:manage"))]):
+    """知识库来源与切块统计。"""
+    from ..services.kb_vector import status as kb_status_fn
+    return {"sources": kb_status_fn(db)}
+
+
+@router.post("/kb/sync")
+def kb_sync(db: DbDep, user: Annotated[User, Depends(require_permission("qa:manage"))], request: Request,
+            force: bool = False):
+    """重新扫描 backend/kb/*.md 并重建向量索引（按文件哈希幂等；force=true 强制重建）。"""
+    from ..services.kb_vector import sync_all
+    result = sync_all(db, force=force)
+    write_audit(db, user, "kb.sync", target="knowledge_base", detail=str(result), ip=client_ip(request))
+    return {"synced": result}
+
+
+class KbSearchIn(BaseModel):
+    question: str
+    top_k: int = 3
+
+
+@router.post("/kb/search")
+def kb_search(body: KbSearchIn, db: DbDep,
+              user: Annotated[User, Depends(require_permission("qa:manage"))]):
+    """检索调试：看某个问题命中的知识块与相似度（不消耗 token）。"""
+    from ..services.kb_vector import search
+    return {"hits": search(db, body.question, top_k=max(1, min(10, body.top_k)))}
+
+
 # ---------- 活动（场次）管理：列表 / 新建 / 编辑 / 切换 / 生命周期 / 账单 ----------
 
 def _campaign_out(c: Campaign, db: Session) -> dict:

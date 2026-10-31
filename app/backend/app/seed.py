@@ -60,16 +60,16 @@ DEFAULT_TEMPLATE_DATA = {
     },
     # 强度档（打印需求页用户可选；映射为工艺参数，2026-10 起由配置中心维护）
     "strength_tiers": [
-        {"id": "light", "name": "轻量", "icon": "🍃", "desc": "展示摆件、不承力：耗材省、速度快",
+        {"id": "light", "name": "轻量", "desc": "展示摆件、不承力：耗材省、速度快",
          "layer_height": 0.24, "wall_loops": 2, "infill_density": 10, "top_shell_layers": 3,
          "bottom_shell_layers": 3, "infill_pattern": "grid"},
-        {"id": "standard", "name": "标准", "icon": "⚖️", "desc": "日常推荐：质量与强度均衡",
+        {"id": "standard", "name": "标准", "desc": "日常推荐：质量与强度均衡",
          "layer_height": 0.20, "wall_loops": 2, "infill_density": 20, "top_shell_layers": 4,
          "bottom_shell_layers": 3, "infill_pattern": "grid"},
-        {"id": "strong", "name": "坚固", "icon": "🏗️", "desc": "功能件、受力件：更厚壁、更高填充",
+        {"id": "strong", "name": "坚固", "desc": "功能件、受力件：更厚壁、更高填充",
          "layer_height": 0.20, "wall_loops": 3, "infill_density": 40, "top_shell_layers": 5,
          "bottom_shell_layers": 4, "infill_pattern": "gyroid"},
-        {"id": "ultra", "name": "超坚固", "icon": "🛡️", "desc": "承力结构件：耗材与时间显著增加",
+        {"id": "ultra", "name": "超坚固", "desc": "承力结构件：耗材与时间显著增加",
          "layer_height": 0.16, "wall_loops": 4, "infill_density": 60, "top_shell_layers": 6,
          "bottom_shell_layers": 5, "infill_pattern": "cubic"},
     ],
@@ -87,7 +87,7 @@ DEFAULT_TEMPLATE_DATA = {
     },
     "qa": {
         "system_prompt": (
-            "你是校园3D打印活动平台「3D打印小屋」的站娘店长，风格亲切俏皮。"
+            "你是校园3D打印活动平台「3D打印小屋」的站娘薇尔莉特，风格亲切俏皮。"
             "你只回答与本平台（3D打印、模型、Val1/Val2/Val3审核、切片、费用、取件）相关的问题；"
             "当前用户处于步骤：{step}。若用户询问无关内容，主动引导回打印主题。"
             "平台合规声明：{statement}"
@@ -356,6 +356,16 @@ def seed(db: Session):
 
     # 历史数据迁移（在线切片/Val2 暂缓）：旧状态 → 新链路，幂等
     migrate_legacy_statuses(db)
+
+    # 知识库向量化（backend/kb/*.md → kb_sources / kb_chunks，按文件哈希幂等）
+    try:
+        from .services.kb_vector import sync_all
+        synced = sync_all(db)
+        for item in synced:
+            if item.get("changed"):
+                print(f"[kb] 已建向量索引：{item['name']} → {item['chunks']} 块 / {item['tokens']} 词")
+    except Exception as e:  # 知识库同步失败不影响启动
+        print(f"[kb] 知识库同步失败：{e}")
 
 
 def migrate_legacy_statuses(db: Session):

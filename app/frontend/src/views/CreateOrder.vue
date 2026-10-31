@@ -18,11 +18,11 @@ const dragOver = ref(false)
 const MAX_MB = 300
 
 const models = [
-  { kind: 'vase', name: '桌面小花瓶', desc: '螺旋纹小花瓶，适合桌面摆放', emoji: '🏺' },
-  { kind: 'robot', name: '可动小机器人', desc: '关节可动的小机器人摆件', emoji: '🤖' },
-  { kind: 'stand', name: '手机支架', desc: '桌面手机支架，横竖屏均可', emoji: '📱' },
-  { kind: 'penholder', name: '多功能笔筒', desc: '六边形笔筒，可放文具与手机', emoji: '🖊️' },
-  { kind: 'spinner', name: '指尖陀螺', desc: '解压指尖陀螺（薄壁款有风险）', emoji: '🌀' },
+  { kind: 'vase', name: '桌面小花瓶', desc: '螺旋纹小花瓶，适合桌面摆放' },
+  { kind: 'robot', name: '可动小机器人', desc: '关节可动的小机器人摆件' },
+  { kind: 'stand', name: '手机支架', desc: '桌面手机支架，横竖屏均可' },
+  { kind: 'penholder', name: '多功能笔筒', desc: '六边形笔筒，可放文具与手机' },
+  { kind: 'spinner', name: '指尖陀螺', desc: '解压指尖陀螺（薄壁款有风险）' },
 ]
 const campaign = computed(() => app.meta?.campaign)
 
@@ -106,7 +106,7 @@ function gotoWorkspace() {
         <!-- 上传模型（默认） -->
         <el-tab-pane name="upload">
           <template #label>
-            <span style="font-weight: 700">📤 上传模型</span>
+            <span style="font-weight: 700">上传模型</span>
             <span class="muted" style="font-size: 12px; font-weight: 400">STL / OBJ（≤ {{ MAX_MB }}MB）</span>
           </template>
           <div
@@ -123,7 +123,6 @@ function gotoWorkspace() {
             }"
           >
             <input ref="fileInput" type="file" accept=".stl,.obj" style="display: none" @change="onFile" :disabled="uploadState.uploading" />
-            <div style="font-size: 40px">📦</div>
             <div style="font-weight: 700; margin-top: 8px">点击选择或拖拽 STL / OBJ 文件到此处</div>
             <div class="muted" style="font-size: 12.5px; margin-top: 4px">
               支持最大 {{ MAX_MB }}MB · 上传后服务端 trimesh 自动解析几何（面数/封闭/悬垂/壁厚）
@@ -149,14 +148,13 @@ function gotoWorkspace() {
         <!-- 内置演示模型 -->
         <el-tab-pane name="preset">
           <template #label>
-            <span style="font-weight: 700">🎲 内置演示模型</span>
+            <span style="font-weight: 700">内置演示模型</span>
             <span class="muted" style="font-size: 12px; font-weight: 400">快速体验</span>
           </template>
           <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 14px; padding: 6px 2px">
             <div v-for="m in models" :key="m.kind" class="card" style="cursor: pointer; padding: 14px; transition: transform .15s; margin: 0"
                  @mouseenter="$event.target.style.transform = 'translateY(-2px)'"
                  @mouseleave="$event.target.style.transform = ''" @click="selectPreset(m.kind)">
-              <div style="font-size: 30px">{{ m.emoji }}</div>
               <div style="font-weight: 700; margin-top: 6px">{{ m.name }}</div>
               <div class="muted" style="font-size: 12.5px">{{ m.desc }}</div>
             </div>

@@ -198,7 +198,7 @@ onMounted(load)
                    background: form.strength === t.id ? 'var(--accent-soft)' : 'var(--card)',
                    borderRadius: 10, padding: '10px 12px', cursor: 'pointer', transition: 'all .15s',
                  }">
-              <div style="font-weight: 700; font-size: 13.5px">{{ t.icon }} {{ t.name }}</div>
+              <div style="font-weight: 700; font-size: 13.5px">{{ t.name }}</div>
               <div class="muted" style="font-size: 12px; margin-top: 2px">{{ t.desc }}</div>
               <div class="mono muted" style="font-size: 11.5px; margin-top: 4px">
                 壁厚 {{ t.wall_loops }} 圈 · 填充 {{ t.infill_density }}%

@@ -11,7 +11,7 @@ const set = (k, v) => emit('update:modelValue', { ...props.modelValue, [k]: v })
 
 const GROUPS = [
   {
-    name: '质量 Quality', icon: '🎯', items: [
+    name: '质量 Quality', items: [
       { k: 'layer_height', label: '层高', type: 'num', min: 0.04, max: 0.5, step: 0.04, unit: 'mm' },
       { k: 'initial_layer_print_height', label: '首层层高', type: 'num', min: 0.08, max: 1, step: 0.04, unit: 'mm' },
       { k: 'line_width', label: '线宽（0=自动）', type: 'num', min: 0, max: 1.2, step: 0.05, unit: 'mm', hint: '0 = 按喷嘴×系数自动' },
@@ -22,7 +22,7 @@ const GROUPS = [
     ],
   },
   {
-    name: '强度 Strength', icon: '🏗️', items: [
+    name: '强度 Strength', items: [
       { k: 'wall_loops', label: '壁厚圈数', type: 'num', min: 1, max: 8, step: 1, unit: '圈' },
       { k: 'top_shell_layers', label: '顶实心层', type: 'num', min: 0, max: 12, step: 1, unit: '层' },
       { k: 'bottom_shell_layers', label: '底实心层', type: 'num', min: 0, max: 12, step: 1, unit: '层' },
@@ -31,7 +31,7 @@ const GROUPS = [
     ],
   },
   {
-    name: '速度 Speed', icon: '⚡', items: [
+    name: '速度 Speed', items: [
       { k: 'initial_layer_speed', label: '首层速度', type: 'num', min: 10, max: 120, step: 5, unit: 'mm/s' },
       { k: 'outer_wall_speed', label: '外壁速度', type: 'num', min: 20, max: 400, step: 10, unit: 'mm/s' },
       { k: 'inner_wall_speed', label: '内壁速度', type: 'num', min: 20, max: 400, step: 10, unit: 'mm/s' },
@@ -49,7 +49,7 @@ const GROUPS = [
     ],
   },
   {
-    name: '温度 Temperature', icon: '🌡️', items: [
+    name: '温度 Temperature', items: [
       { k: 'nozzle_temperature', label: '喷嘴温度', type: 'num', min: 180, max: 300, step: 5, unit: '°C' },
       { k: 'initial_layer_print_temperature', label: '首层喷嘴温度', type: 'num', min: 180, max: 300, step: 5, unit: '°C' },
       { k: 'bed_temperature', label: '热床温度', type: 'num', min: 20, max: 120, step: 5, unit: '°C' },
@@ -57,7 +57,7 @@ const GROUPS = [
     ],
   },
   {
-    name: '支撑 Support', icon: '🛠️', items: [
+    name: '支撑 Support', items: [
       { k: 'enable_support', label: '启用支撑', type: 'bool' },
       { k: 'support_type', label: '支撑类型', type: 'select', options: ['normal(auto)', 'tree(auto)', 'normal', 'tree'] },
       { k: 'support_threshold_angle', label: '支撑角度阈值', type: 'num', min: 0, max: 90, step: 5, unit: '°' },
@@ -69,7 +69,7 @@ const GROUPS = [
     ],
   },
   {
-    name: '平台附加 Others', icon: '📏', items: [
+    name: '平台附加 Others', items: [
       { k: 'brim_type', label: '底边类型', type: 'select', options: ['auto_brim', 'no_brim', 'brim', 'outer_brim', 'mouse_ear'] },
       { k: 'brim_width', label: '底边宽度', type: 'num', min: 0, max: 40, step: 1, unit: 'mm' },
       { k: 'skirt_loops', label: '裙边圈数', type: 'num', min: 0, max: 10, step: 1, unit: '圈' },
@@ -78,7 +78,7 @@ const GROUPS = [
     ],
   },
   {
-    name: '高级 Advanced', icon: '🧰', items: [
+    name: '高级 Advanced', items: [
       { k: 'retraction_length', label: '回抽长度', type: 'num', min: 0, max: 10, step: 0.1, unit: 'mm' },
       { k: 'retraction_speed', label: '回抽速度', type: 'num', min: 20, max: 100, step: 5, unit: 'mm/s' },
       { k: 'z_hop', label: 'Z 抬升', type: 'num', min: 0, max: 2, step: 0.1, unit: 'mm' },
@@ -94,7 +94,7 @@ const GROUPS = [
   <div>
     <div v-for="g in GROUPS" :key="g.name" style="margin-bottom: 16px">
       <div style="font-weight: 700; font-size: 13px; margin-bottom: 6px; display: flex; align-items: center; gap: 6px">
-        <span>{{ g.icon }}</span>{{ g.name }}
+        {{ g.name }}
         <span class="muted" style="font-weight: 400; font-size: 11.5px">（OrcaSlicer 同字段）</span>
       </div>
       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px 14px">

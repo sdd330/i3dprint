@@ -7,6 +7,8 @@ from .entities import (
     ConfigTemplate,
     CostLedger,
     Issue,
+    KbChunk,
+    KbSource,
     Model,
     ModelVersion,
     Order,
@@ -21,6 +23,6 @@ from .entities import (
 
 __all__ = [
     "ApiUsage", "AppSetting", "AuditLog", "Campaign", "ConfigAudit", "ConfigTemplate", "CostLedger",
-    "Issue", "Model", "ModelVersion", "Order", "PrintJob", "QaKnowledge", "QaTicket",
+    "Issue", "KbChunk", "KbSource", "Model", "ModelVersion", "Order", "PrintJob", "QaKnowledge", "QaTicket",
     "QaTicketComment", "Review", "Role", "User",
 ]

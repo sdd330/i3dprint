@@ -3,7 +3,7 @@ import * as THREE from 'three'
 import { STLLoader } from 'three/examples/jsm/loaders/STLLoader.js'
 import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader.js'
 
-export const DEFAULT_MAT = () => new THREE.MeshStandardMaterial({ color: 0xe8602c, roughness: 0.55, metalness: 0.05 })
+export const DEFAULT_MAT = () => new THREE.MeshStandardMaterial({ color: 0x7A4BB5, roughness: 0.55, metalness: 0.05 })
 
 // 内置演示模型（与后端 trimesh build_preset 对应）
 export function buildPreset(kind) {

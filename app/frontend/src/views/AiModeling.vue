@@ -76,7 +76,7 @@ async function fillToOrder() {
                     :title="`体检结果：${result.report.result}`" :description="result.report.summary" :closable="false" />
           <div v-for="i in result.report.items.filter(x => x.level !== 'pass')" :key="i.id"
                style="margin-top: 6px; font-size: 12.5px; color: var(--amber)">
-            ⚠ {{ i.name }}：{{ i.message }}
+            {{ i.name }}：{{ i.message }}
           </div>
           <div style="display: flex; gap: 8px; margin-top: 14px">
             <el-button type="primary" @click="fillToOrder">自动填充到上传环节 →</el-button>

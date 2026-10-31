@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
     # 服务
-    app_name: str = "E3DP 校园3D打印活动平台"
+    app_name: str = "Violet Print · 校园 3D 打印自助平台"
     host: str = "0.0.0.0"
     port: int = 8000
     debug: bool = False

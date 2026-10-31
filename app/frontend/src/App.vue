@@ -17,8 +17,11 @@ onMounted(() => { if (!app.meta) app.loadMeta().catch(() => {}) })
     <header class="topbar">
       <div class="topbar-inner">
         <div class="brand" @click="$router.push('/')">
-          <span class="brand-logo">🧪</span>
-          <span>3D 打印小屋</span>
+          <span class="brand-logo"><img src="/brand/sign.jpg" alt="VIOLET Z" /></span>
+          <span class="brand-name">
+            Violet Print
+            <small>TEAM 6940 · 校园 3D 打印自助平台</small>
+          </span>
         </div>
         <nav class="nav">
           <router-link to="/">首页</router-link>
@@ -43,6 +46,8 @@ onMounted(() => { if (!app.meta) app.loadMeta().catch(() => {}) })
         <router-link v-else to="/login"><el-button type="primary" size="small">登录</el-button></router-link>
       </div>
     </header>
+    <!-- 队徽底纹：固定在左侧，低透明度（sign.jpg） -->
+    <div class="brand-watermark" aria-hidden="true" />
     <router-view />
     <QaPanel />
   </div>

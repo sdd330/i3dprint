@@ -97,7 +97,7 @@ onMounted(async () => {
         </div>
 
         <div v-if="r.manifest?.operator_note" class="muted" style="font-size: 12.5px; margin-top: 8px">
-          📝 用户备注：{{ r.manifest.operator_note }}
+          用户备注：{{ r.manifest.operator_note }}
         </div>
         <div v-if="r.manifest?.params" class="mono muted" style="font-size: 11.5px; margin-top: 6px">
           关键参数：喷嘴 {{ r.manifest.params.nozzle_temperature }}°C · 热床 {{ r.manifest.params.bed_temperature }}°C ·

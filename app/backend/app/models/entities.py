@@ -264,6 +264,30 @@ class QaTicketComment(Base):
     at: Mapped[str] = mapped_column(String(32), default=now_iso)
 
 
+class KbSource(Base):
+    """知识库文档来源（教材/手册等）：一份文档一条，按文件哈希判断是否需要重新切块。"""
+    __tablename__ = "kb_sources"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(160), unique=True)     # 文件名
+    path: Mapped[str] = mapped_column(String(256), default="")
+    file_hash: Mapped[str] = mapped_column(String(64), default="")
+    chunk_count: Mapped[int] = mapped_column(Integer, default=0)
+    idf: Mapped[dict] = mapped_column(JSON, default=dict)            # 语料 IDF 表（供查询向量化复用）
+    updated_at: Mapped[str] = mapped_column(String(32), default=now_iso)
+
+
+class KbChunk(Base):
+    """知识库切块 + 稀疏向量（TF-IDF，L2 归一化；本地计算，不依赖外部 embedding API）"""
+    __tablename__ = "kb_chunks"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    source_id: Mapped[int] = mapped_column(ForeignKey("kb_sources.id"), index=True)
+    ordinal: Mapped[int] = mapped_column(Integer, default=0)
+    heading: Mapped[str] = mapped_column(String(256), default="")    # 所属章节路径，如「第三章 材料 › 3.2 队内四种主力耗材」
+    content: Mapped[str] = mapped_column(Text)
+    vector: Mapped[dict] = mapped_column(JSON, default=dict)         # {token: weight}
+    char_count: Mapped[int] = mapped_column(Integer, default=0)
+
+
 class QaKnowledge(Base):
     """站娘知识库条目（决策清单 §13：图形化配置，可绑 Spine 动画关键字）"""
     __tablename__ = "qa_knowledge"
