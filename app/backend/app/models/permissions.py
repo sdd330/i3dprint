@@ -21,11 +21,17 @@ PERMISSIONS = {
     "bill:view": "活动账单查看",
     "config:manage": "配置中心管理",
     "role:manage": "角色与权限管理",
+    "user:manage": "用户管理（列表 / 改角色 / 启停 / 重置密码）",
     "qa:manage": "站娘配置与工单管理",
     "order:view_all": "查看全部需求（负责人）",
 }
 
 DEFAULT_ROLES = {
+    # 最底层超级管理员：拥有全部权限，角色与账号均受保护（不可编辑/删除/停用/降级）
+    "root": {
+        "name": "超级管理员（受保护）",
+        "permissions": list(PERMISSIONS.keys()),
+    },
     "student": {
         "name": "学生参与者",
         "permissions": [

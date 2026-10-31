@@ -61,6 +61,26 @@ def login(body: LoginIn, request: Request, db: Annotated[Session, Depends(get_db
     return {"token": create_token(user.id, user.username, user.role.code), "user": _user_out(user)}
 
 
+class PasswordChangeIn(BaseModel):
+    old_password: str
+    new_password: str
+
+
+@router.post("/password")
+def change_password(body: PasswordChangeIn, request: Request,
+                    user: Annotated[User, Depends(get_current_user)],
+                    db: Annotated[Session, Depends(get_db)]):
+    """修改自己的密码（所有人可用）。"""
+    if not verify_password(body.old_password, user.hashed_password):
+        raise HTTPException(status_code=400, detail="原密码不正确")
+    if len(body.new_password or "") < 6:
+        raise HTTPException(status_code=400, detail="新密码至少 6 位")
+    user.hashed_password = hash_password(body.new_password)
+    db.commit()
+    write_audit(db, user, "auth.password_change", target=user.username, ip=client_ip(request))
+    return {"ok": True}
+
+
 @router.get("/me")
 def me(user: Annotated[User, Depends(get_current_user)]):
     return {"user": _user_out(user)}

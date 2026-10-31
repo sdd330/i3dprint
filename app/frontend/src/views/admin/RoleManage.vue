@@ -63,7 +63,8 @@ onMounted(load)
         </el-table-column>
         <el-table-column label="" width="80">
           <template #default="{ row }">
-            <el-button link type="primary" @click="openEdit(row)">编辑</el-button>
+            <el-button v-if="row.code === 'root'" link disabled>受保护</el-button>
+            <el-button v-else link type="primary" @click="openEdit(row)">编辑</el-button>
           </template>
         </el-table-column>
       </el-table>

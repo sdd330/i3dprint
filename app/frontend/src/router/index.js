@@ -19,6 +19,7 @@ const routes = [
   { path: '/admin/manifest', component: () => import('@/views/admin/PrintManifest.vue'), meta: { admin: true } },
   { path: '/admin/campaigns', component: () => import('@/views/admin/Campaigns.vue'), meta: { admin: true } },
   { path: '/admin/config', component: () => import('@/views/admin/ConfigCenter.vue'), meta: { admin: true } },
+  { path: '/admin/users', component: () => import('@/views/admin/Users.vue'), meta: { admin: true } },
   { path: '/admin/roles', component: () => import('@/views/admin/RoleManage.vue'), meta: { admin: true } },
   { path: '/admin/qa-config', component: () => import('@/views/admin/QaConfig.vue'), meta: { admin: true } },
   { path: '/admin/audits', component: () => import('@/views/admin/AuditLogs.vue'), meta: { admin: true } },

@@ -189,11 +189,13 @@ def seed(db: Session):
             db.add(Role(code=code, name=cfg["name"], permissions=cfg["permissions"], builtin=True))
         db.commit()
     else:
-        # 老库：代码新增权限点时，给内置角色补齐（不删除管理员手动调整过的权限）
+        # 老库：内置角色缺失则补建（如新增的 root）；已存在的补齐权限点（不删管理员手动调过的）
         changed = False
         for code, cfg in DEFAULT_ROLES.items():
             role = db.query(Role).filter_by(code=code, builtin=True).first()
             if not role:
+                db.add(Role(code=code, name=cfg["name"], permissions=cfg["permissions"], builtin=True))
+                changed = True
                 continue
             current = list(role.permissions or [])
             missing = [p for p in cfg["permissions"] if p not in current]
@@ -222,12 +224,26 @@ def seed(db: Session):
     if db.query(User).count() == 0:
         admin_role = db.query(Role).filter_by(code="admin").first()
         stu_role = db.query(Role).filter_by(code="student").first()
-        # 只创建管理员；学生账号由学生自助注册（/api/auth/register）或负责人在角色管理中创建
+        # 只创建 root（最底层管理员）与 admin（日常负责人）；
+        # 学生账号由学生自助注册（/api/auth/register）或负责人在「用户管理」创建
+        root_role_id = db.query(Role).filter_by(code="root").first().id
         db.add_all([
+            User(username="root", name="超级管理员", grade="", contact="",
+                 hashed_password=hash_password(getattr(settings, "root_password", "root123456")),
+                 role_id=root_role_id),
             User(username="admin", name="平台负责人", grade="", contact="admin@stu.edu.cn",
                  hashed_password=hash_password("admin123"), role_id=admin_role.id),
         ])
         db.commit()
+
+    # 兜底：老库没有 root 账号时补建（受保护账号必须存在）
+    if not db.query(User).filter_by(username="root").first():
+        root_role = db.query(Role).filter_by(code="root").first()
+        if root_role:
+            db.add(User(username="root", name="超级管理员", grade="", contact="",
+                        hashed_password=hash_password(getattr(settings, "root_password", "root123456")),
+                        role_id=root_role.id))
+            db.commit()
 
     # 站娘知识库初始条目（决策清单 §13：管理端可图形化增删改查）
     if db.query(QaKnowledge).count() == 0:

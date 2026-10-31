@@ -96,6 +96,8 @@ def update_role(role_id: int, body: RoleIn, db: DbDep, user: AdminDep):
     role = db.get(Role, role_id)
     if not role:
         raise HTTPException(status_code=404, detail="角色不存在")
+    if role.code == "root":
+        raise HTTPException(status_code=403, detail="root 角色为受保护角色，不可修改（始终拥有全部权限）")
     unknown = [p for p in body.permissions if p not in PERMISSIONS]
     if unknown:
         raise HTTPException(status_code=400, detail=f"未知权限点：{unknown}")

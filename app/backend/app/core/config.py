@@ -28,6 +28,8 @@ class Settings(BaseSettings):
 
     # 安全（决策清单 §9）
     jwt_secret: str = "dev-secret-change-me"  # 生产必须改（启动会告警）
+    # 首次建库时 root（最底层管理员）的初始口令；生产请用 E3DP_ROOT_PASSWORD 覆盖
+    root_password: str = "root123456"
     # 生产部署把这里改成实际域名（同源部署可留空）；默认只放行本地开发端口
     cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
     jwt_algorithm: str = "HS256"
