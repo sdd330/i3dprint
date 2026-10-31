@@ -18,7 +18,7 @@ from sqlalchemy.orm import Session
 
 from ..core.database import get_db
 from ..core.dynamic_settings import get_setting
-from ..core.security import client_ip, get_current_user, write_audit
+from ..core.security import client_ip, get_current_user, is_staff, write_audit
 from ..models import Campaign
 from ..models import Campaign, CostLedger, Model, ModelVersion, Order, PrintJob, Review, User
 from ..services.campaign_service import get_current_campaign
@@ -45,7 +45,7 @@ def get_order_or_403(db: Session, order_id: int, user: User) -> Order:
     order = db.get(Order, order_id)
     if not order:
         raise HTTPException(status_code=404, detail="需求不存在")
-    if user.role.code != "admin" and order.user_id != user.id:
+    if not is_staff(user) and order.user_id != user.id:
         raise HTTPException(status_code=403, detail="无权访问他人的需求")
     return order
 
@@ -105,7 +105,7 @@ class PlacementIn(BaseModel):
 @router.get("/orders")
 def list_orders(db: DbDep, user: UserDep):
     q = db.query(Order)
-    if user.role.code != "admin":
+    if not is_staff(user):
         q = q.filter_by(user_id=user.id)
     orders = q.order_by(Order.id.desc()).all()
     return {"orders": [_order_out(db, o) for o in orders]}
@@ -144,7 +144,7 @@ def model_file(version_id: int, db: DbDep, user: UserDep):
     if not mv or not mv.file_path or mv.file_path.startswith("preset:"):
         raise HTTPException(status_code=404, detail="模型文件不存在")
     model = db.get(Model, mv.model_id)
-    if user.role.code != "admin" and (not model or model.owner_id != user.id):
+    if not is_staff(user) and (not model or model.owner_id != user.id):
         raise HTTPException(status_code=403, detail="无权访问该模型文件")
     ext = os.path.splitext(mv.file_path)[1].lower()
     media = "model/obj" if ext == ".obj" else "application/sla"

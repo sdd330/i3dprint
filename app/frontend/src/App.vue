@@ -62,8 +62,9 @@ async function changePassword() {
           </template>
         </nav>
         <div v-if="auth.isLoggedIn" style="display: flex; align-items: center; gap: 10px">
-          <el-tag :type="auth.isAdmin ? 'warning' : 'primary'" effect="plain" round>
-            {{ auth.user.name }} · {{ auth.isAdmin ? '负责人' : auth.user.grade }}
+          <el-tag :type="auth.isRoot ? 'danger' : auth.isAdmin ? 'warning' : 'primary'" effect="plain" round>
+            {{ auth.user.name }} ·
+            {{ auth.isRoot ? '超级管理员' : auth.isAdmin ? '负责人' : auth.user.grade }}
           </el-tag>
           <el-button link @click="pwdVisible = true">修改密码</el-button>
           <el-button link type="danger" @click="auth.logout(); $router.push('/')">退出</el-button>

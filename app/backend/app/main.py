@@ -1,9 +1,13 @@
 # E3DP backend — FastAPI 应用入口
 
+import socket
 from contextlib import asynccontextmanager
+from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 
 from .core.config import settings
 from .core.database import Base, SessionLocal, engine
@@ -29,7 +33,47 @@ async def lifespan(app: FastAPI):
         except Exception:
             pass
         load_from_db(db)  # 加载持久化的软件设置覆盖（环境变量图形化配置）
+    # 局域网访问地址（部署到局域网服务器时，学生用 http://<这台机器的IP>:端口 打开）
+    port = _runtime_port()
+    for ip in _lan_ips():
+        log.info("局域网访问：http://%s:%s", ip, port)
     yield
+
+
+def _runtime_port() -> int:
+    """实际监听端口：优先取命令行 --port（uvicorn 不写回 settings），否则用配置值。"""
+    import sys
+    argv = sys.argv
+    for i, arg in enumerate(argv):
+        if arg == "--port" and i + 1 < len(argv):
+            try:
+                return int(argv[i + 1])
+            except ValueError:
+                return settings.port
+        if arg.startswith("--port="):
+            try:
+                return int(arg.split("=", 1)[1])
+            except ValueError:
+                return settings.port
+    return settings.port
+
+
+def _lan_ips() -> list[str]:
+    ips = set()
+    try:
+        hostname = socket.gethostname()
+        for info in socket.getaddrinfo(hostname, None, socket.AF_INET):
+            ips.add(info[4][0])
+    except Exception:
+        pass
+    try:
+        s_ = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s_.connect(("8.8.8.8", 80))   # 不真的发包，只用来拿默认出口地址
+        ips.add(s_.getsockname()[0])
+        s_.close()
+    except Exception:
+        pass
+    return sorted(i for i in ips if not i.startswith("127."))
 
 
 app = FastAPI(title=settings.app_name, lifespan=lifespan)
@@ -47,7 +91,8 @@ app.add_middleware(
 
 @app.get("/api/health")
 def health():
-    return {"ok": True, "app": settings.app_name}
+    return {"ok": True, "app": settings.app_name, "port": _runtime_port(),
+            "frontend_served": (Path(settings.frontend_dist) / "index.html").exists()}
 
 
 # 路由
@@ -66,3 +111,35 @@ app.include_router(ai.router, prefix="/api/ai", tags=["ai"])
 app.include_router(settings_router.router, prefix="/api", tags=["settings"])
 app.include_router(printer_router)  # /api/printers（配置中心维护设备清单）
 app.include_router(users_router, prefix="/api")   # /api/admin/users（用户管理，需要 user:manage）
+
+
+# ---------- 前端静态托管（同源部署：学生只要访问本机 http://<IP>:<port>）----------
+_dist = Path(settings.frontend_dist)
+if _dist.exists():
+    _assets = _dist / "assets"
+    if _assets.exists():
+        app.mount("/assets", StaticFiles(directory=str(_assets)), name="assets")
+
+    @app.get("/{full_path:path}", include_in_schema=False)
+    def spa_fallback(full_path: str):
+        """已构建的前端：优先返回 dist 里的真实文件，其余交给 index.html（Vue history 路由）。"""
+        if full_path.startswith("api/") or full_path == "api":
+            raise HTTPException(status_code=404, detail="接口不存在")
+        candidate = (_dist / full_path).resolve()
+        try:
+            # 防目录穿越：解析后必须仍在 dist 内
+            candidate.relative_to(_dist.resolve())
+        except ValueError:
+            raise HTTPException(status_code=404, detail="Not Found")
+        if full_path and candidate.is_file():
+            return FileResponse(candidate)
+        return FileResponse(_dist / "index.html")
+else:
+    @app.get("/", include_in_schema=False)
+    def dev_hint():
+        return {
+            "app": settings.app_name,
+            "hint": "未找到前端构建产物（frontend/dist）。开发时请用 npm run dev；"
+                    "部署时先 `cd frontend && npm run build`，本服务会自动同源托管。",
+            "api_health": "/api/health",
+        }

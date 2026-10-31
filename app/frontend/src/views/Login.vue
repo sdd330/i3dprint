@@ -35,7 +35,7 @@ async function submit() {
     <div class="card">
       <h2 style="margin: 0 0 4px">{{ mode === 'login' ? '登录' : '活动登记' }}</h2>
       <p class="muted" style="margin: 0 0 20px">
-        非营利 · 仅覆盖成本 · 学号/用户名 + 密码（决策：暴露公网需权限系统）
+        学号/用户名 + 密码（决策：暴露公网需权限系统）
       </p>
       <el-form label-position="top" @submit.prevent>
         <el-form-item label="学号 / 用户名">

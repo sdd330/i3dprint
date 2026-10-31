@@ -9,7 +9,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from ..core.database import get_db
-from ..core.security import get_current_user
+from ..core.security import get_current_user, is_staff
 from ..models import Campaign
 from ..models import Campaign, QaKnowledge, QaTicket
 from ..models.entities import User
@@ -62,7 +62,7 @@ class TicketIn(BaseModel):
 @router.get("/tickets")
 def list_tickets(db: DbDep, user: UserDep):
     q = db.query(QaTicket)
-    if user.role.code != "admin":
+    if not is_staff(user):
         q = q.filter_by(author_id=user.id)
     tickets = q.order_by(QaTicket.id.desc()).all()
     return {"tickets": [_t_out(t) for t in tickets]}
@@ -88,7 +88,7 @@ def add_comment(ticket_id: int, body: CommentIn, db: DbDep, user: UserDep):
         raise HTTPException(status_code=404, detail="工单不存在")
     from ..models import QaTicketComment
     db.add(QaTicketComment(ticket_id=t.id, author=user.name, content=body.content))
-    if user.role.code == "admin":
+    if is_staff(user):
         t.status = "answered"
     db.commit()
     return {"ticket": _t_out(db.get(QaTicket, ticket_id))}
@@ -110,7 +110,7 @@ def set_status(ticket_id: int, body: StatusIn, db: DbDep,
 
 
 def _admin(user: UserDep) -> User:
-    if user.role.code != "admin":
+    if not is_staff(user):
         raise HTTPException(status_code=403, detail="仅负责人可操作")
     return user
 

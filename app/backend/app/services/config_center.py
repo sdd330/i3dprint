@@ -16,7 +16,7 @@ DEFAULT_TEMPLATE: dict = {
         "max_participants": 20,
         "appeal_limit_per_campaign": 5,   # 每场申诉审核上限（§5.3）
         "appeal_limit_per_model": 2,      # 单模型申诉次数上限
-        "notice": "校园3D打印活动：非营利、费用只覆盖成本；活动结束后统一收款。",
+        "notice": "校园3D打印活动：、费用只覆盖成本非营利；活动结束后统一收款。",
     },
     "cost": {
         "materials": [  # 材料价格表：成本价(元/g) × 材料系数 + 换料补偿

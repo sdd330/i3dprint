@@ -42,7 +42,7 @@ onMounted(async () => {
       <div>
         <h1 class="home-hero-title">Violet Print</h1>
         <p class="home-hero-sub">
-          校园 3D 打印自助平台 · TEAM 6940 · 非营利，费用只覆盖成本
+          校园 3D 打印自助平台 · TEAM 6940 
         </p>
       </div>
     </div>

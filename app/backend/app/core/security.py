@@ -77,8 +77,22 @@ def require_permission(permission: str):
     return checker
 
 
+# 负责人侧角色：root（受保护超级管理员）与 admin（日常负责人）都算 staff
+STAFF_ROLE_CODES = {"root", "admin"}
+
+
+def is_staff(user: User | None) -> bool:
+    """是否负责人侧账号。优先看角色码，其次看"查看全部需求"权限点（自定义角色也能用）。"""
+    if not user or not user.role:
+        return False
+    if (user.role.code or "") in STAFF_ROLE_CODES:
+        return True
+    return "order:view_all" in (user.role.permissions or [])
+
+
 def require_admin(user: Annotated[User, Depends(get_current_user)]) -> User:
-    if user.role.code != "admin":
+    """负责人级别（root 或 admin）。原实现只认 admin，导致 root 被当学生。"""
+    if not is_staff(user):
         raise HTTPException(status_code=403, detail="仅负责人可操作")
     return user
 

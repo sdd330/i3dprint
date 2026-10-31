@@ -1,0 +1,25 @@
+# Violet Print — systemd 单元示例（Linux 局域网服务器）
+#
+#   sudo cp deploy/violetprint.service /etc/systemd/system/
+#   sudo systemctl daemon-reload && sudo systemctl enable --now violetprint
+#   journalctl -u violetprint -f
+#
+# 注意：务必保持 workers=1（SQLite + 打印队列/对话排队/登录限流都在进程内存里）
+[Unit]
+Description=Violet Print 校园 3D 打印自助平台
+After=network-online.target
+
+[Service]
+Type=simple
+User=print
+WorkingDirectory=/opt/violetprint/app/backend
+Environment=E3DP_HOST=0.0.0.0
+Environment=E3DP_PORT=8000
+Environment=E3DP_JWT_SECRET=请替换为随机长字符串
+# E3DP_LLM_BASE_URL / E3DP_LLM_API_KEY / E3DP_ROOT_PASSWORD 也在这里配
+ExecStart=/opt/violetprint/app/backend/.venv/bin/python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 1
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

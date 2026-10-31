@@ -135,6 +135,38 @@ cd backend/native && ./build.sh      # macOS 出 universal2（x86_64+arm64），
 | `TRIPO_API_KEY` | 空 | AI 建模真实调用（未接时为程序化演示） |
 | `ORCA_SLICER_PATH` / `SLICER_MOCK` | orca-slicer / true | 服务端切片器；POC 后关闭 mock |
 
+## 局域网部署（校园内网 · 推荐形态）
+
+一台局域网服务器（教室/创客空间的小主机或实验室电脑）跑后端 + 前端，学生在同一内网用浏览器访问。
+
+```bash
+cd app
+./start.sh                 # 自动建 venv / 编原生解析器 / 构建前端，然后绑 0.0.0.0:8000 启动
+# 首次或前端有改动时：./start.sh --build
+# 换端口：./start.sh --port 8080
+```
+
+启动日志会打印可直接发给学生的地址，例如：
+
+```
+局域网访问：http://192.168.31.93:8000
+```
+
+| 事项 | 说明 |
+|---|---|
+| 学生怎么用 | 浏览器打开 `http://<服务器IP>:8000`，注册账号 → 建需求 → 上传模型；**无需安装任何东西** |
+| 服务器固定 IP | 建议在路由器上给服务器绑定静态 IP（DHCP 保留），否则 IP 变了链接就失效 |
+| 防火墙 | macOS「系统设置 → 网络 → 防火墙」允许 Python/uvicorn 传入；Linux `ufw allow 8000/tcp`；Windows 允许专用网络入站 |
+| 前端 | 后端同源托管 `frontend/dist`（已实现：静态资源 + SPA 深链接兜底），学生访问不需要 5173 端口 |
+| 进程数 | **必须单 worker**（`--workers 1`）：SQLite、打印队列占用状态、对话并发排队、登录限流都在进程内存里 |
+| 开机自启 | `app/deploy/violetprint.service`（systemd 示例）或 pm2 |
+| 数据库与文件 | 全在 `backend/data/`：`e3dp.db`（SQLite）、`uploads/`（模型）、`slices/`。**备份就备份这个目录** |
+| AI 对话 | 若 LM Studio 跑在同一台机器：`http://127.0.0.1:1234/v1`；在另一台机器：填那台的局域网地址 `http://192.168.x.x:1234/v1`（并在 LM Studio 里开 "Serve on Local Network"） |
+| 上传大小 | 默认 300MB；大模型多的话在「软件设置 → 服务」调 `max_upload_bytes` |
+| 外网访问 | 需要时用内网穿透（cloudflared / frp）把 8000 暴露出去，穿透工具自带 HTTPS；此时记得配 `CORS_ORIGINS` |
+
+前端开发模式（可选）：`cd frontend && npm run dev`，vite 已开 `host: true`，同网段可访问 `http://<服务器IP>:5173`，`/api` 自动代理到 8000（可用 `VITE_API_TARGET` 指定后端地址）。
+
 ## 生产部署（Violet Print）
 
 > 当前仓库即为**生产形态**：不再内置演示模型、不再生成演示订单/账号，`backend/kb/` 的教材知识库随代码发布。

@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from ..core.database import get_db
 from ..services.campaign_service import get_current_campaign
-from ..core.security import CurrentUser, StaffUser, require_permissions
+from ..core.security import is_staff as _is_staff, CurrentUser, StaffUser, require_permissions
 from ..models.entities import User
 from ..models.entities import Campaign, QaTicket
 from ..services.ai import ai_generate
@@ -43,7 +43,7 @@ def ask(payload: dict, user: User = Depends(require_permissions("qa:ask")),
 
 @qa_router.get("/tickets")
 def list_tickets(user: CurrentUser, db: Session = Depends(get_db)):
-    is_staff = user.role and user.role.name == "admin"
+    is_staff = _is_staff(user)
     q = db.query(QaTicket)
     if not is_staff:
         q = q.filter_by(author_id=user.id)
@@ -71,7 +71,7 @@ def add_comment(tid: int, payload: dict, user: CurrentUser, db: Session = Depend
     comments.append({"author": user.name, "content": payload.get("content", ""),
                      "at": datetime.now(timezone.utc).isoformat()})
     t.comments = comments
-    if user.role and user.role.name == "admin":
+    if _is_staff(user):
         t.status = "answered"
     db.commit()
     return {"ok": True}

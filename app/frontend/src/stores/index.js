@@ -7,7 +7,9 @@ export const useAuthStore = defineStore('auth', {
     token: localStorage.getItem('token') || '',
   }),
   getters: {
-    isAdmin: (s) => s.user?.role === 'admin',
+    // 负责人侧：root（受保护超级管理员）与 admin（日常负责人）都算
+    isAdmin: (s) => ['root', 'admin'].includes(s.user?.role),
+    isRoot: (s) => s.user?.role === 'root',
     isLoggedIn: (s) => !!s.token,
     hasPerm: (s) => (p) => (s.user?.permissions || []).includes(p),
   },
