@@ -4,6 +4,10 @@
 import { ref, reactive, onMounted, computed, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { api } from '@/api'
+import { useAppStore } from '@/stores'
+
+const app = useAppStore()
+const billingVisible = computed(() => app.billingVisible)
 
 const CATS = [
   { key: 'activity', name: '活动参数' },
@@ -26,7 +30,7 @@ const campaignId = ref(null)
 const f = reactive({
   activity: { max_participants: 20, appeal_limit_per_campaign: 10, appeal_limit_per_model: 3, notice: '' },
   fee: { materials: [], filament_change_fee: 1.5, maintenance: { base: 0.6, per_gram: 0.004 },
-         reprint_rate: {}, api: { deepseek_input_per_mtok: 2, deepseek_output_per_mtok: 8, tripo_per_point: 0.1 } },
+         reprint_rate: {}, api: { llm_input_per_mtok: 2, llm_output_per_mtok: 8, tripo_per_point: 0.1 } },
   val1: { build_volume: { x: 256, y: 256, z: 256 }, wall_min_hard: 0.8, wall_min_soft: 1.2, overhang_warn: 30, overhang_hard: 55 },
   presets: [],
   strength_tiers: [],
@@ -150,7 +154,10 @@ function addPrinter() {
 }
 const delRow = (list, i) => list.splice(i, 1)
 
-onMounted(load)
+onMounted(async () => {
+  if (!app.meta) await app.loadMeta().catch(() => {})
+  load()
+})
 </script>
 
 <template>
@@ -199,6 +206,9 @@ onMounted(load)
           </el-form>
 
           <!-- ② 费用参数 -->
+          <el-alert v-if="active === 'fee' && !billingVisible" type="info" :closable="false" show-icon style="margin-bottom: 10px"
+                    title="计费相关配置已暂时隐藏"
+                    description="价格、系数、换料补偿、维护费、重打比例、API 单价暂不显示；材料的名称/密度/有货颜色仍可维护。" />
           <div v-else-if="active === 'fee'">
             <div style="font-weight: 600; margin-bottom: 6px">材料价格表（§11.1：成本价 × 重量 × 系数）</div>
             <el-table :data="materials" size="small" border>
@@ -208,10 +218,10 @@ onMounted(load)
               <el-table-column label="名称">
                 <template #default="{ row }"><el-input v-model="row.name" size="small" /></template>
               </el-table-column>
-              <el-table-column label="成本价(元/g)" width="120">
+              <el-table-column v-if="billingVisible" label="成本价(元/g)" width="120">
                 <template #default="{ row }"><el-input-number v-model="row.price_per_g" size="small" :min="0" :step="0.01" :controls="false" /></template>
               </el-table-column>
-              <el-table-column label="材料系数" width="100">
+              <el-table-column v-if="billingVisible" label="材料系数" width="100">
                 <template #default="{ row }"><el-input-number v-model="row.coeff" size="small" :min="0.1" :step="0.05" :controls="false" /></template>
               </el-table-column>
               <el-table-column label="密度" width="90">
@@ -234,7 +244,7 @@ onMounted(load)
             </el-table>
             <el-button size="small" style="margin-top: 8px" @click="addRow(materials)">+ 添加材料</el-button>
 
-            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-top: 18px">
+            <div v-if="billingVisible" style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-top: 18px">
               <el-form-item label="换料补偿（元/次）" style="margin-bottom: 0">
                 <el-input-number v-model="f.fee.filament_change_fee" :min="0" :step="0.5" />
               </el-form-item>
@@ -246,20 +256,20 @@ onMounted(load)
               </el-form-item>
             </div>
 
-            <div style="font-weight: 600; margin: 16px 0 6px">重打计费比例（§10）</div>
-            <div style="display: flex; gap: 16px; flex-wrap: wrap">
+            <div v-if="billingVisible" style="font-weight: 600; margin: 16px 0 6px">重打计费比例（§10）</div>
+            <div v-if="billingVisible" style="display: flex; gap: 16px; flex-wrap: wrap">
               <el-form-item v-for="k in ['PARAMETER', 'MACHINE', 'MODEL', 'MACHINE_LIMIT', 'OTHER']" :key="k" :label="k" style="margin-bottom: 0">
                 <el-input-number v-model="f.fee.reprint_rate[k]" :min="0" :max="1" :step="0.1" />
               </el-form-item>
             </div>
 
-            <div style="font-weight: 600; margin: 16px 0 6px">API 用量单价（§11.3，按实际用量计费）</div>
-            <div style="display: flex; gap: 16px; flex-wrap: wrap">
-              <el-form-item label="DeepSeek 输入(元/百万tok)" style="margin-bottom: 0">
-                <el-input-number v-model="f.fee.api.deepseek_input_per_mtok" :min="0" :step="0.5" />
+            <div v-if="billingVisible" style="font-weight: 600; margin: 16px 0 6px">API 用量单价（§11.3，按实际用量计费）</div>
+            <div v-if="billingVisible" style="display: flex; gap: 16px; flex-wrap: wrap">
+              <el-form-item label="对话模型 输入(元/百万tok)" style="margin-bottom: 0">
+                <el-input-number v-model="f.fee.api.llm_input_per_mtok" :min="0" :step="0.5" />
               </el-form-item>
-              <el-form-item label="DeepSeek 输出(元/百万tok)" style="margin-bottom: 0">
-                <el-input-number v-model="f.fee.api.deepseek_output_per_mtok" :min="0" :step="0.5" />
+              <el-form-item label="对话模型 输出(元/百万tok)" style="margin-bottom: 0">
+                <el-input-number v-model="f.fee.api.llm_output_per_mtok" :min="0" :step="0.5" />
               </el-form-item>
               <el-form-item label="Tripo(元/点)" style="margin-bottom: 0">
                 <el-input-number v-model="f.fee.api.tripo_per_point" :min="0" :step="0.05" />

@@ -47,7 +47,6 @@ class Settings(BaseSettings):
     # 几何分析超时（秒）：超过返回明确提示，不再无限阻塞
     analysis_timeout_sec: int = 90
     # AI 对话（2026-10）：任意 OpenAI 兼容端点（LM Studio / DeepSeek / OpenAI / Ollama…）
-    # 留空 base_url 时回退到下面的 deepseek_* 旧配置
     llm_base_url: str = "http://127.0.0.1:1234/v1"
     llm_api_key: str = ""          # 本地模型通常不需要；云端填 key
     llm_model: str = ""            # 留空=自动取 /v1/models 里第一个对话模型
@@ -58,6 +57,11 @@ class Settings(BaseSettings):
     embedding_enabled: bool = True
     embedding_base_url: str = "http://127.0.0.1:1234/v1"
     embedding_model: str = "text-embedding-text2vec-bge-large-chinese-i1"
+
+    # 教材/手册向量检索阈值（2026-10，可在软件设置里调）
+    kb_vector_min_score_dense: float = 0.34   # 语义通道阈值（本地/在线 embedding）
+    kb_vector_min_score: float = 0.06         # 字面（TF-IDF）通道阈值
+    kb_vector_hybrid_sparse_weight: float = 0.45  # 混合分中字面分权重
 
     # 壁厚测量（2026-10）：默认用 2V/A 快速估算；需要精确值时开启抽样射线
     wall_raycast_enabled: bool = False

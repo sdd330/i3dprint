@@ -43,9 +43,11 @@ def qa_ask(body: AskIn, db: DbDep, user: UserDep):
     result = ask(db, user, body.question, body.step, config)
     if result.get("usage"):
         u = result["usage"]
-        append_api_usage(db, kind="qa", service="deepseek", user_id=user.id,
+        api_price = config.get("fee", {}).get("api", {})
+        append_api_usage(db, kind="qa", service="llm", user_id=user.id,
                          input_tokens=u["input_tokens"], output_tokens=u["output_tokens"],
-                         unit_price=config.get("fee", {}).get("api", {}).get("deepseek_input_per_mtok", 0),
+                         unit_price=api_price.get("llm_input_per_mtok", 0),
+                         output_unit_price=api_price.get("llm_output_per_mtok", 0),
                          meta={"step": body.step})
     return result
 

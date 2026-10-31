@@ -40,9 +40,18 @@ def append_cost(db: Session, *, order_id: int | None, print_job_id: int | None,
 
 def append_api_usage(db: Session, *, kind: str, service: str, user_id: int | None,
                      input_tokens: int = 0, output_tokens: int = 0, points: float = 0.0,
-                     unit_price: float = 0.0, meta: dict | None = None) -> ApiUsage:
-    amount = round(input_tokens * unit_price / 1_000_000 + output_tokens * unit_price / 1_000_000 + points * unit_price, 4) \
-        if service == "deepseek" else round(points * unit_price, 4)
+                     unit_price: float = 0.0, output_unit_price: float | None = None,
+                     meta: dict | None = None) -> ApiUsage:
+    """记录 API 用量。
+
+    · 对话模型（service=llm/deepseek）：按 token 计费，输入/输出可分别定价
+    · 其他（tripo 等）：按点数 × 单价
+    """
+    if service in ("llm", "deepseek"):
+        out_price = unit_price if output_unit_price is None else output_unit_price
+        amount = round(input_tokens * unit_price / 1_000_000 + output_tokens * out_price / 1_000_000, 4)
+    else:
+        amount = round(points * unit_price, 4)
     usage = ApiUsage(kind=kind, service=service, user_id=user_id, input_tokens=input_tokens,
                      output_tokens=output_tokens, points=points, unit_price=unit_price, amount=amount,
                      meta=meta or {})

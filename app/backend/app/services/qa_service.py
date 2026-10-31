@@ -171,13 +171,13 @@ def ask(db: Session, user: User | None, question: str, step: str, config: dict) 
 
     # 4) 用量计费（决策清单 §5：按 token，不按次）
     fee = config.get("fee", {}).get("api", {})
-    in_price = fee.get("deepseek_input_per_mtok", settings.deepseek_input_price_per_mtok)
-    out_price = fee.get("deepseek_output_per_mtok", settings.deepseek_output_price_per_mtok)
+    in_price = fee.get("llm_input_per_mtok", 0.0)
+    out_price = fee.get("llm_output_per_mtok", 0.0)
     return {
         "answer": result["content"], "blocked": False, "animation_key": "think",
         "model": result.get("model"),
         "usage": {
-            "service": "deepseek", "input_tokens": result["input_tokens"], "output_tokens": result["output_tokens"],
+            "service": "llm", "input_tokens": result["input_tokens"], "output_tokens": result["output_tokens"],
             "amount": round(result["input_tokens"] / 1e6 * in_price + result["output_tokens"] / 1e6 * out_price, 4),
         },
     }

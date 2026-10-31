@@ -35,7 +35,7 @@ DEFAULT_TEMPLATE_DATA = {
         "filament_change_fee": 1.5,      # 换料补偿（元/次）
         "maintenance": {"base": 0.6, "per_gram": 0.004},  # 维护费 = base + per_gram×重量
         "reprint_rate": {"PARAMETER": 1.0, "MACHINE": 1.0, "MODEL": 0.0, "MACHINE_LIMIT": 0.0, "OTHER": 1.0},  # 2026-10：取消设备问题半价
-        "api": {"deepseek_input_per_mtok": 2.0, "deepseek_output_per_mtok": 8.0, "tripo_per_point": 0.1},
+        "api": {"llm_input_per_mtok": 2.0, "llm_output_per_mtok": 8.0, "tripo_per_point": 0.1},  # 对话模型 token 单价（按实际用量计费）
     },
     "val1": {
         "build_volume": {"x": 256, "y": 256, "z": 256},  # X1C
@@ -100,7 +100,7 @@ DEFAULT_TEMPLATE_DATA = {
 # 软件全局设置清单（环境变量图形化配置的落地点）
 APP_SETTINGS_META = [
     ("tripo_api_key", "external", "Tripo API Key", "AI 建模真实调用（留空为程序化演示）", "secret", False),
-    ("llm_base_url", "external", "AI 对话 Endpoint", "任意 OpenAI 兼容地址，如 LM Studio http://127.0.0.1:1234/v1、DeepSeek https://api.deepseek.com/v1；留空则用下方 DeepSeek 旧配置", "str", False),
+    ("llm_base_url", "external", "AI 对话 Endpoint", "任意 OpenAI 兼容地址：LM Studio http://127.0.0.1:1234/v1、DeepSeek https://api.deepseek.com/v1、OpenAI…", "str", False),
     ("llm_api_key", "external", "AI 对话 API Key", "本地模型（LM Studio/Ollama）一般留空；云端服务填 key", "secret", False),
     ("llm_max_concurrent", "external", "对话并发上限（0=自动）", "0=自动按端点判定：本地端点(LM Studio/Ollama) 1 个并发，在线 API（如非思考模式 ds-flash）4 个并发；填 >0 则强制指定", "int", False),
     ("llm_queue_timeout_sec", "external", "排队超时（秒）", "0/留空=自动（本地 40s / 在线 25s）；超过则提示用户稍后再问，避免请求堆积", "int", False),
@@ -116,6 +116,9 @@ APP_SETTINGS_META = [
     ("slicer_max_concurrent", "slicer", "最大并行切片数", "同时最多几个 OrcaSlicer 切片进程；超出排队等待（建议 2，单机 8 核）", "int", False),
     ("max_upload_bytes", "service", "模型上传上限（字节）", "超过则拒绝上传", "int", False),
     ("analysis_timeout_sec", "service", "几何分析超时（秒）", "仅生僻格式回退 trimesh 子进程时生效；STL/OBJ 走快速解析（秒级内）", "int", False),
+    ("kb_vector_min_score_dense", "service", "教材检索·语义阈值", "稠密向量相似度阈值（0.34 较稳；调高更严格，容易落到大模型）", "float", False),
+    ("kb_vector_min_score", "service", "教材检索·字面阈值", "TF-IDF 字面相似度阈值（默认 0.06）", "float", False),
+    ("kb_vector_hybrid_sparse_weight", "service", "教材检索·字面权重", "混合分 = 语义分 + 该权重 × 字面分（默认 0.45）", "float", False),
     ("wall_raycast_enabled", "service", "精确壁厚（抽样射线）", "默认关闭：壁厚用 2V/A 快速估算（薄壳件即壁厚）。开启后对闭合模型抽样投射射线取 5 分位，更准但慢", "bool", False),
     ("wall_ray_samples", "service", "壁厚采样射线数", "开启精确壁厚时的采样数（越大越准越慢，建议 800）", "int", False),
     ("wall_raycast_max_faces", "service", "精确壁厚面数上限", "超过该面数不抽样（避免慢），退回 2V/A 估算", "int", False),
@@ -139,6 +142,31 @@ def seed(db: Session):
                 val = encrypt_secret(val)  # secret 加密落库
             db.add(AppSetting(key=key, value=val, category=cat,
                               label=label, hint=hint, value_type=vtype, restart_required=restart))
+    db.commit()
+
+    # 迁移：api 单价键 deepseek_* → llm_*（模板与各活动副本）
+    def _migrate_api_keys(data: dict) -> bool:
+        api = ((data or {}).get("fee") or {}).get("api")
+        if not isinstance(api, dict):
+            return False
+        changed = False
+        for old, new in (("deepseek_input_per_mtok", "llm_input_per_mtok"),
+                         ("deepseek_output_per_mtok", "llm_output_per_mtok")):
+            if old in api and new not in api:
+                api[new] = api.pop(old)
+                changed = True
+        return changed
+
+    for tpl_row in db.query(ConfigTemplate).all():
+        import copy as _c
+        data = _c.deepcopy(tpl_row.data or {})
+        if _migrate_api_keys(data):
+            tpl_row.data = data
+    for camp in db.query(Campaign).all():
+        import copy as _c
+        cfg = _c.deepcopy(camp.config or {})
+        if _migrate_api_keys(cfg):
+            camp.config = cfg
     db.commit()
 
     # 迁移：并发/超时改为"0=自动"后，把旧默认值 1 / 40 迁成 0（只迁移仍是旧默认的行）
