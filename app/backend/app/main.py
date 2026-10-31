@@ -26,6 +26,7 @@ def _snapshot_db() -> None:
         return
     backups = Path(settings.data_dir) / "backups"
     backups.mkdir(parents=True, exist_ok=True)
+    KEEP = 2                                     # 只保留最近 2 份快照
     existing = sorted(backups.glob("e3dp-*.db"))
     import time as _t
     if existing and _t.time() - existing[-1].stat().st_mtime < 1800:
@@ -33,7 +34,7 @@ def _snapshot_db() -> None:
     dst = backups / f"e3dp-{datetime.now().strftime('%Y%m%d-%H%M')}.db"
     try:
         shutil.copy2(src, dst)
-        for old in existing[:-11]:
+        for old in sorted(backups.glob("e3dp-*.db"))[:-KEEP]:
             old.unlink(missing_ok=True)
     except Exception:
         pass

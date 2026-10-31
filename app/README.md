@@ -161,6 +161,7 @@ cd app
 | 进程数 | **必须单 worker**（`--workers 1`）：SQLite、打印队列占用状态、对话并发排队、登录限流都在进程内存里 |
 | 开机自启 | `app/deploy/violetprint.service`（systemd 示例）或 pm2 |
 | 数据库与文件 | 全在 `backend/data/`：`e3dp.db`（SQLite）、`uploads/`（模型）、`slices/`。**备份就备份这个目录** |
+| 自动快照 | 每次启动自动快照到 `data/backups/`，**只保留最近 2 份**；手动备份 `cd backend && .venv/bin/python -m app.tools.backup_db --list/（无参数即备份）`。回滚：停服务 → 用备份覆盖 `data/e3dp.db` → 启动 |
 | AI 对话 | 若 LM Studio 跑在同一台机器：`http://127.0.0.1:1234/v1`；在另一台机器：填那台的局域网地址 `http://192.168.x.x:1234/v1`（并在 LM Studio 里开 "Serve on Local Network"） |
 | 上传大小 | 默认 300MB；大模型多的话在「软件设置 → 服务」调 `max_upload_bytes` |
 | 外网访问 | 需要时用内网穿透（cloudflared / frp）把 8000 暴露出去，穿透工具自带 HTTPS；此时记得配 `CORS_ORIGINS` |
