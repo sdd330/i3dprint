@@ -321,15 +321,16 @@ def val3_review(order_id: int, body: Val3In, db: DbDep,
 @router.get("/kb")
 def kb_status(db: DbDep, user: Annotated[User, Depends(require_permission("qa:manage"))]):
     """知识库来源与切块统计。"""
-    from ..services.kb_vector import status as kb_status_fn
-    return {"sources": kb_status_fn(db)}
+    from ..services.kb_vector import probe, status as kb_status_fn
+    return {"sources": kb_status_fn(db), "embedding": probe()}
 
 
 @router.post("/kb/sync")
 def kb_sync(db: DbDep, user: Annotated[User, Depends(require_permission("qa:manage"))], request: Request,
             force: bool = False):
     """重新扫描 backend/kb/*.md 并重建向量索引（按文件哈希幂等；force=true 强制重建）。"""
-    from ..services.kb_vector import sync_all
+    from ..services.kb_vector import ensure_columns, sync_all
+    ensure_columns(db)
     result = sync_all(db, force=force)
     write_audit(db, user, "kb.sync", target="knowledge_base", detail=str(result), ip=client_ip(request))
     return {"synced": result}

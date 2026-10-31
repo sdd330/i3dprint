@@ -273,6 +273,7 @@ class KbSource(Base):
     file_hash: Mapped[str] = mapped_column(String(64), default="")
     chunk_count: Mapped[int] = mapped_column(Integer, default=0)
     idf: Mapped[dict] = mapped_column(JSON, default=dict)            # 语料 IDF 表（供查询向量化复用）
+    embedding_model: Mapped[str] = mapped_column(String(128), default="")  # 构建稠密索引用的模型（空=稀疏）
     updated_at: Mapped[str] = mapped_column(String(32), default=now_iso)
 
 
@@ -284,7 +285,9 @@ class KbChunk(Base):
     ordinal: Mapped[int] = mapped_column(Integer, default=0)
     heading: Mapped[str] = mapped_column(String(256), default="")    # 所属章节路径，如「第三章 材料 › 3.2 队内四种主力耗材」
     content: Mapped[str] = mapped_column(Text)
-    vector: Mapped[dict] = mapped_column(JSON, default=dict)         # {token: weight}
+    vector: Mapped[dict] = mapped_column(JSON, default=dict)         # {token: weight}（TF-IDF 稀疏向量）
+    embedding: Mapped[list | None] = mapped_column(JSON, nullable=True)          # 稠密向量（正文，单位化）
+    embedding_heading: Mapped[list | None] = mapped_column(JSON, nullable=True)  # 稠密向量（章节标题，单位化）
     char_count: Mapped[int] = mapped_column(Integer, default=0)
 
 

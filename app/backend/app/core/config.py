@@ -46,6 +46,11 @@ class Settings(BaseSettings):
     max_upload_bytes: int = 300 * 1024 * 1024
     # 几何分析超时（秒）：超过返回明确提示，不再无限阻塞
     analysis_timeout_sec: int = 90
+    # 向量检索 embedding（2026-10）：本地 LM Studio / 任意 OpenAI 兼容 /v1/embeddings
+    embedding_enabled: bool = True
+    embedding_base_url: str = "http://127.0.0.1:1234/v1"
+    embedding_model: str = "text-embedding-text2vec-bge-large-chinese-i1"
+
     # 壁厚测量（2026-10）：默认用 2V/A 快速估算；需要精确值时开启抽样射线
     wall_raycast_enabled: bool = False
     wall_ray_samples: int = 800

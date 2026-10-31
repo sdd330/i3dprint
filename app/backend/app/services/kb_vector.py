@@ -22,9 +22,13 @@ from sqlalchemy.orm import Session
 from ..models import KbChunk, KbSource
 
 KB_DIR = Path(__file__).resolve().parents[2] / "kb"   # backend/kb
+
+# embedding 批大小（LM Studio 对单请求条数有限制，分批更稳）
+EMBED_BATCH = 16
 CHUNK_MAX_CHARS = 420        # 单块正文上限（过长会稀释相似度）
 CHUNK_MIN_CHARS = 40         # 过短的块（纯标题/目录行）丢弃
-DEFAULT_MIN_SCORE = 0.06     # 命中阈值（低于此分交给大模型或转人工；可在软件设置调）
+DEFAULT_MIN_SCORE = 0.06     # 稀疏(TF-IDF)命中阈值；稠密阈值见 kb_vector_min_score_dense
+HYBRID_SPARSE_WEIGHT = 0.45  # 混合检索里字面分的权重（综合分 = dense + 0.45 × sparse）
 
 # 中文停用词（短表即可；二元组本身已过滤掉大部分噪声）
 _STOP = set("的了和与及或是把被在有为对从到等这那你我他她它其之则而且并但也就都还很更最可以一个什么怎么如何为什么需要如果因为所以")
@@ -46,13 +50,114 @@ def _normalize(text: str) -> str:
 _HEADING_RE = re.compile(r"^(#{1,4})\s+(.*)$")
 
 
+# ---------------------------------------------------------------- embedding（本地 LM Studio）
+
+def embedding_conf() -> dict:
+    """读取软件设置里的 embedding 配置（LM Studio 的 OpenAI 兼容端点）。"""
+    from ..core.config import settings
+    from ..core.dynamic_settings import get_setting
+    return {
+        "enabled": bool(get_setting("embedding_enabled", settings.embedding_enabled)),
+        "base_url": (get_setting("embedding_base_url", settings.embedding_base_url) or "").rstrip("/"),
+        "model": (get_setting("embedding_model", settings.embedding_model) or "").strip(),
+    }
+
+
+def _client():
+    import httpx
+    # 本地服务：绕过 http_proxy（否则走了代理会连不上 127.0.0.1）
+    return httpx.Client(timeout=120, trust_env=False)
+
+
+def detect_model(base_url: str) -> str | None:
+    """从 /v1/models 里挑一个 embedding 模型（优先含 embedding/bge 的）。"""
+    try:
+        with _client() as c:
+            r = c.get(f"{base_url}/models")
+            r.raise_for_status()
+            ids = [m.get("id", "") for m in r.json().get("data", [])]
+    except Exception:
+        return None
+    for key in ("embedding", "bge", "text2vec"):
+        for i in ids:
+            if key in i.lower():
+                return i
+    return None
+
+
+def probe() -> dict:
+    """给管理端用的可用性探测。"""
+    cfg = embedding_conf()
+    info = {"enabled": cfg["enabled"], "base_url": cfg["base_url"], "model": cfg["model"], "reachable": False, "models": []}
+    try:
+        with _client() as c:
+            r = c.get(f"{cfg['base_url']}/models")
+            r.raise_for_status()
+            info["models"] = [m.get("id", "") for m in r.json().get("data", [])]
+            info["reachable"] = True
+    except Exception as e:
+        info["error"] = str(e)[:160]
+    if not info["model"]:
+        info["model"] = detect_model(cfg["base_url"]) or ""
+    return info
+
+
+def embed_texts(texts: list[str], cfg: dict | None = None) -> list[list[float]] | None:
+    """批量取 embedding（单位化后返回，余弦=点积）。失败返回 None，由调用方回退 TF-IDF。"""
+    cfg = cfg or embedding_conf()
+    if not cfg["enabled"] or not texts:
+        return None
+    model = cfg["model"] or detect_model(cfg["base_url"])
+    if not model:
+        return None
+    out: list[list[float]] = []
+    try:
+        with _client() as c:
+            for i in range(0, len(texts), EMBED_BATCH):
+                batch = texts[i:i + EMBED_BATCH]
+                r = c.post(f"{cfg['base_url']}/embeddings", json={"model": model, "input": batch})
+                r.raise_for_status()
+                data = r.json().get("data", [])
+                if len(data) != len(batch):
+                    return None
+                for item in sorted(data, key=lambda d: d.get("index", 0)):
+                    vec = item.get("embedding") or []
+                    norm = math.sqrt(sum(v * v for v in vec)) or 1.0
+                    out.append([round(v / norm, 6) for v in vec])
+        return out if len(out) == len(texts) else None
+    except Exception:
+        return None
+
+
+def _dense_cos(a: list[float], b: list[float]) -> float:
+    if not a or not b or len(a) != len(b):
+        return 0.0
+    return sum(x * y for x, y in zip(a, b))
+
+
 # ---------------------------------------------------------------- 切块
 
 def _clean(text: str) -> str:
-    """去掉 Markdown 修饰（图片/链接/强调/表格分隔线），保留可读正文。"""
+    """去掉 Markdown 修饰（图片/链接/强调/表格管道符），保留可读正文。
+
+    表格转成「· 单元格1 ｜ 单元格2 ｜ 单元格3」的可读行——直接丢给聊天框时不会再冒出裸竖线。
+    """
     text = re.sub(r"!\[[^\]]*\]\([^)]*\)", "", text)           # 图片
     text = re.sub(r"\[([^\]]*)\]\([^)]*\)", r"\1", text)        # 链接 → 文本
-    text = re.sub(r"^\s*\|?[\s:|-]{6,}\|?\s*$", "", text)       # 表格分隔行
+    text = text.replace("<br>", " ").replace("<br/>", " ").replace("<br />", " ")
+    out = []
+    for line in text.splitlines():
+        s = line.strip()
+        if re.fullmatch(r"\|?[\s:|-]{6,}\|?", s or ""):           # 表格分隔行
+            continue
+        if s.startswith("|") and s.count("|") >= 2:                  # 表格数据行
+            cells = [c.strip() for c in s.strip("|").split("|")]
+            cells = [c for c in cells if c]
+            if cells:
+                out.append("· " + " ｜ ".join(cells))
+            continue
+        out.append(line)
+    text = "\n".join(out)
     text = re.sub(r"[*_`>#]+", "", text)                        # 强调/引用/代码符
     text = re.sub(r"\\\.", ".", text)
     text = re.sub(r"\n{3,}", "\n\n", text)
@@ -195,11 +300,21 @@ def cosine(a: dict[str, float], b: dict[str, float]) -> float:
     return sum(v * b.get(t, 0.0) for t, v in a.items())
 
 
-def search(db: Session, question: str, top_k: int = 3, min_score: float = DEFAULT_MIN_SCORE) -> list[dict]:
-    """向量检索：返回 [{heading, content, score, source}]，按相似度降序。"""
+def search(db: Session, question: str, top_k: int = 3, min_score: float | None = None) -> list[dict]:
+    """检索：有 embedding 索引时用稠密语义检索，否则回退 TF-IDF。
+
+    返回 [{heading, content, score, source, mode}]，按相似度降序。
+    """
     sources = db.query(KbSource).all()
     if not sources:
         return []
+    dense_sources = [s for s in sources if (s.embedding_model or "")]
+    if dense_sources:
+        dense = _search_dense(db, question, dense_sources, top_k)
+        if dense:
+            return dense
+        # embedding 服务暂时不可用 → 回退稀疏
+    min_score = DEFAULT_MIN_SCORE if min_score is None else min_score
     idf: dict[str, float] = {}
     for s in sources:
         for t, v in (s.idf or {}).items():
@@ -216,51 +331,140 @@ def search(db: Session, question: str, top_k: int = 3, min_score: float = DEFAUL
             scored.append({"heading": ch.heading, "content": ch.content,
                            "score": round(score, 4), "source": name_of.get(ch.source_id, "")})
     scored.sort(key=lambda x: x["score"], reverse=True)
+    for item in scored:
+        item["mode"] = "sparse"
+    return scored[:top_k]
+
+
+def _search_dense(db: Session, question: str, sources: list[KbSource], top_k: int) -> list[dict]:
+    """混合检索：稠密语义分 + 稀疏字面分。
+
+    · dense：embedding 余弦（语义召回，跨越"粘住/黏住""噼啪响/受潮"这类说法差异）
+    · sparse：TF-IDF 余弦（字面钉准，避免语义漂到别的章节）
+    · 综合分 = dense + HYBRID_SPARSE_WEIGHT × sparse，入场门槛为"任一通道达标"
+    """
+    from ..core.dynamic_settings import get_setting
+    cfg = embedding_conf()
+    if not cfg["enabled"]:
+        return []
+    qvec = embed_texts([question], cfg)
+    if not qvec:
+        return []
+    qv = qvec[0]
+    dense_min = float(get_setting("kb_vector_min_score_dense", 0.30))
+    sparse_min = float(get_setting("kb_vector_min_score", DEFAULT_MIN_SCORE))
+    weight = float(get_setting("kb_vector_hybrid_sparse_weight", HYBRID_SPARSE_WEIGHT))
+
+    idf: dict[str, float] = {}
+    for s in sources:
+        for t, v in (s.idf or {}).items():
+            idf[t] = max(idf.get(t, 0.0), float(v))
+    sqv = query_vector(question, idf)
+
+    ids = [s.id for s in sources]
+    name_of = {s.id: s.name for s in sources}
+    rows = db.query(KbChunk).filter(KbChunk.source_id.in_(ids)).all()
+    # 查询里的中文二元组：用于字面命中加成（钉准「噼啪响」「首层」这类具体说法）
+    q_bigrams = {t for t in tokenize(question) if len(t) == 2 and _CJK_RE.match(t[0])}
+
+    scored = []
+    for ch in rows:
+        d_full = _dense_cos(qv, ch.embedding) if ch.embedding else 0.0
+        d_head = _dense_cos(qv, ch.embedding_heading) if ch.embedding_heading else 0.0
+        dense = max(d_full, d_head)          # 标题向量通道：解决「答案写在标题里」的情况
+        sparse = cosine(sqv, ch.vector or {}) if sqv else 0.0
+        if dense < dense_min and sparse < sparse_min:
+            continue
+        literal = sum(1 for b in q_bigrams if b in ch.heading or b in ch.content)
+        bonus = min(0.06, 0.02 * literal)
+        scored.append({
+            "heading": ch.heading, "content": ch.content,
+            "score": round(dense + weight * sparse + bonus, 4),
+            "dense": round(dense, 3), "sparse": round(sparse, 3), "literal": literal,
+            "source": name_of.get(ch.source_id, ""), "mode": "hybrid",
+        })
+    scored.sort(key=lambda x: x["score"], reverse=True)
     return scored[:top_k]
 
 
 # ---------------------------------------------------------------- 同步（幂等）
+
+def ensure_columns(db: Session) -> None:
+    """SQLite 不支持 create_all 加列：这里显式 ALTER（幂等，先查 PRAGMA）。"""
+    from sqlalchemy import text
+    wanted = (
+        ("kb_chunks", "embedding", "ALTER TABLE kb_chunks ADD COLUMN embedding JSON"),
+        ("kb_chunks", "embedding_heading", "ALTER TABLE kb_chunks ADD COLUMN embedding_heading JSON"),
+        ("kb_sources", "embedding_model", "ALTER TABLE kb_sources ADD COLUMN embedding_model VARCHAR(128) DEFAULT ''"),
+    )
+    for table, column, ddl in wanted:
+        cols = [r[1] for r in db.execute(text(f"PRAGMA table_info({table})")).fetchall()]
+        if cols and column not in cols:
+            db.execute(text(ddl))
+            db.commit()
+
 
 def _file_hash(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
 def sync_file(db: Session, path: Path, force: bool = False) -> dict:
-    """把单个 Markdown 文件同步进知识库（内容未变则跳过）。"""
+    """把单个 Markdown 文件同步进知识库（内容/embedding 模型未变则跳过）。
+
+    同时构建两套索引：
+      · 稀疏 TF-IDF（永远可用，embedding 不可用时兜底）
+      · 稠密 embedding（本地 LM Studio）：正文向量 + 标题向量两条通道
+    """
     name = path.name
-    fhash = _file_hash(path)
+    cfg = embedding_conf()
+    chunks, idf = build_source(chunk_markdown(path.read_text(encoding="utf-8")))
+    docs = [f"{c['heading']}\n{c['content']}" for c in chunks]
+    heads = [c["heading"] for c in chunks]
+    dense = embed_texts(docs, cfg) if cfg["enabled"] else None
+    dense_head = embed_texts(heads, cfg) if dense else None
+    mode = "dense" if dense else "sparse"
+    model = (cfg["model"] or detect_model(cfg["base_url"])) if dense else ""
+    # 哈希带上模式与模型：换模型/开关变化时自动重建
+    fhash = f"{_file_hash(path)}|{mode}|{model}"
     src = db.query(KbSource).filter_by(name=name).first()
     if src and src.file_hash == fhash and not force:
-        return {"name": name, "changed": False, "chunks": src.chunk_count}
-    chunks, idf = build_source(chunk_markdown(path.read_text(encoding="utf-8")))
+        return {"name": name, "changed": False, "chunks": src.chunk_count, "mode": mode, "model": model}
     if src:
         db.query(KbChunk).filter_by(source_id=src.id).delete()
         src.path, src.file_hash, src.chunk_count, src.idf = str(path), fhash, len(chunks), idf
+        src.embedding_model = model
         src.updated_at = _now()
     else:
-        src = KbSource(name=name, path=str(path), file_hash=fhash, chunk_count=len(chunks), idf=idf)
+        src = KbSource(name=name, path=str(path), file_hash=fhash, chunk_count=len(chunks),
+                       idf=idf, embedding_model=model)
         db.add(src)
     db.flush()
     for i, c in enumerate(chunks):
         db.add(KbChunk(source_id=src.id, ordinal=i, heading=c["heading"][:256],
-                       content=c["content"], vector=c["vector"], char_count=c["char_count"]))
+                       content=c["content"], vector=c["vector"], char_count=c["char_count"],
+                       embedding=(dense[i] if dense else None),
+                       embedding_heading=(dense_head[i] if dense_head else None)))
     db.commit()
-    return {"name": name, "changed": True, "chunks": len(chunks), "tokens": len(idf)}
+    return {"name": name, "changed": True, "chunks": len(chunks), "tokens": len(idf),
+            "mode": mode, "model": model}
 
 
 def sync_all(db: Session, force: bool = False) -> list[dict]:
     """同步 kb 目录下所有 Markdown（启动时调用；幂等）。"""
+    ensure_columns(db)
     if not KB_DIR.exists():
         return []
     return [sync_file(db, p, force=force) for p in sorted(KB_DIR.glob("*.md"))]
 
 
-def _now() -> str:
-    from datetime import datetime
-    return datetime.utcnow().isoformat(timespec="seconds")
-
-
 def status(db: Session) -> list[dict]:
     rows = db.query(KbSource).all()
     return [{"id": s.id, "name": s.name, "chunks": s.chunk_count,
-             "tokens": len(s.idf or {}), "updated_at": s.updated_at} for s in rows]
+             "tokens": len(s.idf or {}), "updated_at": s.updated_at,
+             "mode": "dense" if (getattr(s, "embedding_model", "") or "") else "sparse",
+             "embedding_model": getattr(s, "embedding_model", "") or ""} for s in rows]
+
+
+def _now() -> str:
+    from datetime import datetime
+    return datetime.utcnow().isoformat(timespec="seconds")
