@@ -1,6 +1,4 @@
 # E3DP backend — 打印机清单（设备来自配置中心 `print.printers`，忙闲状态取自运行时）
-# 说明：原 modules.py 里的 printer/ai/qa 路由是早期草稿（引用了不存在的依赖，且从未挂载），
-#      这里单独给出可用实现，供前端展示设备清单/数量。
 
 from __future__ import annotations
 

@@ -2,6 +2,11 @@
 DeepSeek API + 知识库检索（图形化配置）+ Spine 动画关键字 + AI 输出监督：
 自监督 prompt（偏离主题主动纠正）+ 敏感词过滤（DFA，输入输出双向）+ 警示注入对话历史。
 用量按 token 计费（§11.3）。
+
+【未启用】本文件未被任何路由挂载，当前生效的问答实现是 `services/qa_service.py`（由 routers/qa.py 调用）。
+保留原因：DFAFilter（敏感词 DFA 过滤）可作后续接入参考。
+注意：下方 import 的 QaConfig / QaEntry / SensitiveWord 在 models/entities.py 中已不存在，
+直接 `import` 本模块会 ImportError —— 仅在需要参考实现时阅读源码，不要引入。
 """
 from __future__ import annotations
 
