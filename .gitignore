@@ -48,3 +48,7 @@ app/backend/native/*.so
 app/backend/native/*.o
 
 
+
+# 数据库快照目录（刻意入库，见 dbbackup/README.md）
+!dbbackup/
+!dbbackup/*.db
