@@ -203,10 +203,10 @@ cd ../native && ./build.sh    # 可选：编译原生 STL 解析器（不编译�
 ```
 
 必改项（启动时会告警提醒）：
-- `E3DP_JWT_SECRET`：换成 32+ 位随机串（`openssl rand -hex 32`）
-- **root 初始口令**：`E3DP_ROOT_PASSWORD`（默认 `root123456`），首次登录后立刻在右上角「修改密码」改掉
+- `JWT_SECRET`：换成 32+ 位随机串（`openssl rand -hex 32`）
+- **root 初始口令**：`ROOT_PASSWORD`（默认 `root123456`），首次登录后立刻在右上角「修改密码」改掉
 - `admin` 默认口令 `admin123`：同样尽快修改
-- `E3DP_CORS_ORIGINS`：同源部署可留空；前后端分离时填实际域名
+- `CORS_ORIGINS`：同源部署可留空；前后端分离时填实际域名
 
 ### 账号模型
 

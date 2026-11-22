@@ -15,8 +15,8 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 
-PORT=${E3DP_PORT:-8000}
-HOST=${E3DP_HOST:-0.0.0.0}
+PORT=${PORT:-8000}
+HOST=${HOST:-0.0.0.0}
 BUILD=0
 for arg in "$@"; do
   case "$arg" in

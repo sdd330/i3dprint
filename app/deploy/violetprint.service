@@ -13,10 +13,10 @@ After=network-online.target
 Type=simple
 User=print
 WorkingDirectory=/opt/violetprint/app/backend
-Environment=E3DP_HOST=0.0.0.0
-Environment=E3DP_PORT=8000
-Environment=E3DP_JWT_SECRET=请替换为随机长字符串
-# E3DP_LLM_BASE_URL / E3DP_LLM_API_KEY / E3DP_ROOT_PASSWORD 也在这里配
+# 变量名不带 E3DP_ 前缀（见 core/config.py）；监听地址/端口由下面 ExecStart 决定
+Environment=JWT_SECRET=请替换为随机长字符串
+Environment=ROOT_PASSWORD=请替换为强口令
+# LLM_BASE_URL / LLM_API_KEY / DATABASE_URL / CORS_ORIGINS 也在这里配
 ExecStart=/opt/violetprint/app/backend/.venv/bin/python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 1
 Restart=always
 RestartSec=3
