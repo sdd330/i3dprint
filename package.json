@@ -6,6 +6,7 @@
     "dev": "pnpm --filter @i3dprint/web dev",
     "build": "pnpm --filter @i3dprint/web build",
     "lint": "pnpm --filter @i3dprint/web lint",
-    "fmt": "pnpm --filter @i3dprint/web fmt"
+    "fmt": "pnpm --filter @i3dprint/web fmt",
+    "ci": "pnpm lint && pnpm build"
   }
 }
