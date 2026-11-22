@@ -1,0 +1,11 @@
+{
+  "name": "i3dprint",
+  "private": true,
+  "packageManager": "pnpm@12.21.0",
+  "scripts": {
+    "dev": "pnpm --filter @i3dprint/web dev",
+    "build": "pnpm --filter @i3dprint/web build",
+    "lint": "pnpm --filter @i3dprint/web lint",
+    "fmt": "pnpm --filter @i3dprint/web fmt"
+  }
+}

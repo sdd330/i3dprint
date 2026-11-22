@@ -1,0 +1,32 @@
+{
+  "name": "@i3dprint/web",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "nuxt dev",
+    "build": "nuxt build",
+    "preview": "nuxt preview",
+    "postinstall": "nuxt prepare",
+    "lint": "oxlint .",
+    "fmt": "oxfmt --write .",
+    "typecheck": "nuxt typecheck"
+  },
+  "dependencies": {
+    "@pinia/nuxt": "1.0.3",
+    "@unocss/nuxt": "66.13.0",
+    "@vite-pwa/nuxt": "2.0.3",
+    "mysql2": "^3.15.3",
+    "nuxt": "4.6.4",
+    "pinia": "4.1.0",
+    "unocss": "66.13.0",
+    "vue": "^3.5.44",
+    "vue-router": "^5.4.0"
+  },
+  "devDependencies": {
+    "oxfmt": "0.79.0",
+    "oxlint": "1.94.0",
+    "typescript": "7.0.2",
+    "vite": "8.3.8",
+    "vue-tsc": "3.3.14"
+  }
+}

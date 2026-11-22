@@ -1,0 +1,14 @@
+:root {
+  color-scheme: dark;
+}
+
+body {
+  margin: 0;
+  background: #07060a;
+  color: #f6f3fb;
+}
+
+:focus-visible {
+  outline: 2px solid #d946ef;
+  outline-offset: 3px;
+}
