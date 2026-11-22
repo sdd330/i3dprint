@@ -1,4 +1,4 @@
-# E3DP 数据库设计
+# Database Design
 
 建表脚本：[db/e3dp_schema.sql](../db/e3dp_schema.sql)。
 
