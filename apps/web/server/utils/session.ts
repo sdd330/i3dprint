@@ -1,5 +1,5 @@
 import type { H3Event } from 'h3'
-import { createError, deleteCookie, getCookie, setCookie } from 'h3'
+import { createError, deleteCookie, getCookie, parseCookies, setCookie } from 'h3'
 import { isStaff, revokeTokens, rotateRefreshToken, userByAccessToken, type IssuedTokens, type SessionUser } from './oauth'
 
 const ACCESS_COOKIE = 'vz_access'
@@ -47,6 +47,30 @@ export async function requireUser(event: H3Event) {
     }
   }
   throw createError({ statusCode: 401, statusMessage: '未登录' })
+}
+
+/**
+ * Rotates an expired access token once per page render. SSR fetches forward the incoming cookie
+ * header, so the rotated tokens are also written back into it; otherwise an inner API call would
+ * rotate again and its Set-Cookie would never reach the browser.
+ */
+export async function refreshSessionForRender(event: H3Event) {
+  const refresh = getCookie(event, REFRESH_COOKIE)
+  if (!refresh) return
+  try {
+    const access = getCookie(event, ACCESS_COOKIE)
+    if (access && (await userByAccessToken(access))) return
+    const rotated = await rotateRefreshToken(refresh)
+    if (!rotated) return
+    setSessionCookies(event, rotated)
+    const cookies = { ...parseCookies(event), [ACCESS_COOKIE]: rotated.accessToken, [REFRESH_COOKIE]: rotated.refreshToken }
+    event.node.req.headers.cookie = Object.entries(cookies)
+      .map(([name, value]) => `${name}=${encodeURIComponent(value)}`)
+      .join('; ')
+  } catch (error) {
+    // Pages render for anonymous users too; a database outage surfaces through the page's own API calls.
+    console.error(error)
+  }
 }
 
 export async function requireStaff(event: H3Event) {

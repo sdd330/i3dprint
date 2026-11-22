@@ -20,7 +20,7 @@
 | 数据 | MySQL 8，服务端 `mysql2` | — |
 | 访问控制 | OAuth 2.1 授权码 + PKCE S256，刷新令牌轮换 | — |
 
-页面在服务端用 `useAsyncData` 请求 Nitro 接口，接口读取 `~/.mysql_env` 的 `MYSQL_HOST`、`MYSQL_PORT`、`MYSQL_ROOT`、`MYSQL_PASSWORD`，库名 `i3dprint`。口令不进仓库。
+页面在服务端用 `useFetch` 请求 Nitro 接口，接口经 `~/.mysql_env` 取 `MYSQL_HOST`、`MYSQL_PORT`、`MYSQL_USER`（或 `MYSQL_ROOT`）、`MYSQL_PASSWORD`，库名 `i3dprint`。口令不进仓库。
 
 登录口令使用 scrypt（N=2^17，r=8，p=1）写入 `t_sys_user.password_hash`。授权码、访问令牌、刷新令牌只存 SHA-256。会话放在 HttpOnly Cookie，不进 localStorage。公开客户端 `violet-z`，回调路径 `/oauth/callback`。
 

@@ -65,6 +65,10 @@ export function randomToken(bytes = 32) {
   return randomBytes(bytes).toString('base64url')
 }
 
+export function newCode() {
+  return randomToken(12).slice(0, 32)
+}
+
 export function sha256(value: string) {
   return createHash('sha256').update(value).digest('hex')
 }
@@ -115,11 +119,7 @@ export async function authenticate(username: string, password: string) {
   return { id: Number(user.id), code: user.code, name: user.name, role: user.role }
 }
 
-export async function issueAuthorizationCode(input: {
-  userId: number
-  verifier: string
-  redirectUri: string
-}) {
+export async function issueAuthorizationCode(input: { userId: number; verifier: string; redirectUri: string }) {
   const code = randomToken()
   const businessCode = randomToken(12).slice(0, 32)
   await withTx(async (conn) => {
@@ -134,11 +134,7 @@ export async function issueAuthorizationCode(input: {
   return code
 }
 
-export async function exchangeAuthorizationCode(input: {
-  code: string
-  verifier: string
-  redirectUri: string
-}) {
+export async function exchangeAuthorizationCode(input: { code: string; verifier: string; redirectUri: string }) {
   return withTx(async (conn) => {
     const [rows] = await conn.query<CodeRow[]>(
       `SELECT id, user_id, client_id, redirect_uri, code_challenge, scope, expires_at, consumed
@@ -211,13 +207,7 @@ export async function revokeTokens(accessToken?: string, refreshToken?: string) 
   )
 }
 
-async function insertToken(
-  conn: PoolConnection,
-  userId: number,
-  clientId: number,
-  scope: string,
-  knownUser?: SessionUser,
-): Promise<IssuedTokens> {
+async function insertToken(conn: PoolConnection, userId: number, clientId: number, scope: string, knownUser?: SessionUser): Promise<IssuedTokens> {
   const accessToken = randomToken()
   const refreshToken = randomToken()
   const businessCode = randomToken(12).slice(0, 32)
@@ -232,10 +222,9 @@ async function insertToken(
 }
 
 async function clientIdOf(conn: PoolConnection) {
-  const [rows] = await conn.query<RowDataPacket[]>(
-    `SELECT id FROM t_sys_oauth_client WHERE valid = 1 AND sys_oauth_client_code = ? LIMIT 1`,
-    [OAUTH_CLIENT],
-  )
+  const [rows] = await conn.query<RowDataPacket[]>(`SELECT id FROM t_sys_oauth_client WHERE valid = 1 AND sys_oauth_client_code = ? LIMIT 1`, [
+    OAUTH_CLIENT,
+  ])
   const id = rows[0]?.id
   if (!id) throw createError({ statusCode: 500, statusMessage: '客户端未登记' })
   return Number(id)

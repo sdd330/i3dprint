@@ -29,4 +29,7 @@ node_modules/
 .nuxt/
 .output/
 .data/
+dist/
+coverage/
+*.tsbuildinfo
 .mysql_env

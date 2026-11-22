@@ -1,7 +1,7 @@
-import { scrypt, timingSafeEqual } from 'node:crypto'
+import { scrypt, timingSafeEqual, type BinaryLike, type ScryptOptions } from 'node:crypto'
 import { promisify } from 'node:util'
 
-const scryptAsync = promisify(scrypt)
+const scryptAsync = promisify<BinaryLike, BinaryLike, number, ScryptOptions, Buffer>(scrypt)
 
 const N = 131072
 const R = 8
