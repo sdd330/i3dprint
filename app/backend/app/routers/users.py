@@ -14,7 +14,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from ..core.database import get_db
-from ..core.security import client_ip, hash_password, require_permission, write_audit
+from ..core.security import client_ip, ensure_student_id, hash_password, require_permission, write_audit
 from ..models import Order, Role, User
 
 router = APIRouter(prefix="/admin/users", tags=["users"])
@@ -82,6 +82,10 @@ def create_user(body: UserCreateIn, db: DbDep, user: UserAdminDep, request: Requ
     role = db.get(Role, body.role_id)
     if not role:
         raise HTTPException(status_code=400, detail="角色不存在")
+    if role.code == "student":
+        username = ensure_student_id(username)
+        if db.query(User).filter_by(username=username).first():
+            raise HTTPException(status_code=409, detail="该学号已存在")
     u = User(username=username, name=(body.name or username).strip(), grade=body.grade.strip(),
              contact=body.contact.strip(), hashed_password=hash_password(body.password), role_id=role.id)
     db.add(u)

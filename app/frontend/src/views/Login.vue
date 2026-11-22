@@ -8,14 +8,18 @@ const auth = useAuthStore()
 const router = useRouter()
 const route = useRoute()
 const mode = ref('login')
-const form = ref({ username: '', password: '', name: '', grade: '', contact: '' })
+const form = ref({ username: '', password: '', campaign_password: '', name: '', grade: '', contact: '' })
 const loading = ref(false)
+const STUDENT_ID = /^\d{8}$/
 
 async function submit() {
+  if (mode.value === 'register' && !STUDENT_ID.test((form.value.username || '').trim())) {
+    return ElMessage.warning('学号应为 8 位数字，如 20280101')
+  }
   loading.value = true
   try {
     if (mode.value === 'login') {
-      await auth.login(form.value.username, form.value.password)
+      await auth.login(form.value.username, form.value.password, form.value.campaign_password)
       ElMessage.success('欢迎回来～')
     } else {
       await auth.register(form.value)
@@ -35,15 +39,24 @@ async function submit() {
     <div class="card">
       <h2 style="margin: 0 0 4px">{{ mode === 'login' ? '登录' : '活动登记' }}</h2>
       <p class="muted" style="margin: 0 0 20px">
-        学号/用户名 + 密码（决策：暴露公网需权限系统）
+        学生用 8 位学号 + 密码 + 活动口令登录（口令由负责人在线下发放）；
+        负责人用账号名登录，活动口令可留空
       </p>
       <el-form label-position="top" @submit.prevent>
-        <el-form-item label="学号 / 用户名">
-          <el-input v-model="form.username" placeholder="学号 / 用户名" />
+        <el-form-item label="学号">
+          <el-input v-model="form.username" maxlength="64"
+                    :placeholder="mode === 'register' ? '8 位学号，如 20280101' : '8 位学号；负责人填账号名'" />
         </el-form-item>
         <el-form-item label="密码">
           <el-input v-model="form.password" type="password" show-password
                     placeholder="密码" />
+        </el-form-item>
+        <el-form-item label="活动口令">
+          <el-input v-model="form.campaign_password" type="password" show-password
+                    placeholder="负责人线下发放的口令" />
+          <div class="muted" style="font-size: 12px; margin-top: 4px">
+            负责人账号可留空
+          </div>
         </el-form-item>
         <template v-if="mode === 'register'">
           <el-form-item label="姓名"><el-input v-model="form.name" /></el-form-item>

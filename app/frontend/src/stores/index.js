@@ -14,8 +14,10 @@ export const useAuthStore = defineStore('auth', {
     hasPerm: (s) => (p) => (s.user?.permissions || []).includes(p),
   },
   actions: {
-    async login(username, password) {
-      const d = await api.post('/auth/login', { username, password })
+    async login(username, password, campaignPassword) {
+      const d = await api.post('/auth/login', {
+        username, password, campaign_password: campaignPassword || '',
+      })
       this._set(d)
     },
     async register(body) {

@@ -15,7 +15,12 @@ from sqlalchemy.orm import Session
 from ..core.database import get_db
 from ..core.security import client_ip, require_permission, write_audit
 from ..models import AppSetting, Campaign, Issue, Order, PrintJob, Review, User
-from ..services.campaign_service import get_current_campaign, list_campaigns, set_current_campaign
+from ..services.campaign_service import (
+    generate_access_password,
+    get_current_campaign,
+    list_campaigns,
+    set_current_campaign,
+)
 from ..services.config_service import clone_config_for_campaign, get_activity_config
 from ..services.cost import append_cost, calc_filament_fee, settle_order_costs
 from ..services.print_service import allocate, find_idle_printer, printer_snapshot, release
@@ -458,7 +463,7 @@ def create_campaign(body: CampaignCreateIn, db: DbDep,
     if not name:
         raise HTTPException(status_code=400, detail="请填写活动名称")
     config = clone_config_for_campaign(db, source=body.inherit, source_campaign_id=body.inherit_id)
-    password = (body.password or "").strip() or f"E3DP-{_now()[:10].replace('-', '')}"
+    password = (body.password or "").strip() or generate_access_password()
     campaign = Campaign(name=name, status="待开放", password=password,
                         open_at=body.open_at, close_at=body.close_at,
                         max_participants=max(1, int(body.max_participants or 20)), config=config)

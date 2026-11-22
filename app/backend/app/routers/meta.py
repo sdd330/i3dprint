@@ -6,7 +6,8 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from ..core.database import get_db
-from ..models import Campaign
+from ..core.security import get_optional_user, is_staff
+from ..models import Campaign, User
 from ..services.campaign_service import get_current_campaign
 from ..services.config_service import get_activity_config, get_sources
 from ..services.print_requirement import strength_tiers
@@ -15,13 +16,16 @@ router = APIRouter()
 
 
 @router.get("/bootstrap")
-def bootstrap(db: Annotated[Session, Depends(get_db)]):
+def bootstrap(db: Annotated[Session, Depends(get_db)],
+              viewer: Annotated[User | None, Depends(get_optional_user)] = None):
     campaign = get_current_campaign(db)
     cfg = get_activity_config(db, campaign) if campaign else {}
+    staff = is_staff(viewer)
     return {
         "campaign": {
             "id": campaign.id, "name": campaign.name, "status": campaign.status,
-            "password": campaign.password if campaign.status != "已归档" else "****",
+            # 活动口令线下分发：只给负责人看，学生端拿不到明文
+            "password": (campaign.password if campaign.status != "已归档" else "****") if staff else None,
             "open_at": campaign.open_at, "close_at": campaign.close_at,
             "max_participants": campaign.max_participants,
             "config_sources": get_sources(campaign) if campaign else {},

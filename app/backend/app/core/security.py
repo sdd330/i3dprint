@@ -1,5 +1,6 @@
 # E3DP backend — 安全：密码哈希 / JWT / RBAC 依赖 / 审计（决策清单 §9）
 
+import re
 import time
 from typing import Annotated
 
@@ -38,12 +39,12 @@ def create_token(user_id: int, username: str, role: str) -> str:
     return jwt.encode(payload, settings.jwt_secret, algorithm=settings.jwt_algorithm)
 
 
-def _check_login_rate(ip: str):
+def check_login_rate(ip: str):
     now = time.time()
     window = 60
     _login_failures[ip] = [t for t in _login_failures.get(ip, []) if now - t < window]
     if len(_login_failures[ip]) >= settings.login_rate_limit_per_minute:
-        raise HTTPException(status_code=429, detail="登录失败次数过多，请 1 分钟后再试")
+        raise HTTPException(status_code=429, detail="失败次数过多，请 1 分钟后再试")
 
 
 def record_login_failure(ip: str):
@@ -64,6 +65,32 @@ def get_current_user(
     if not user or not user.is_active:
         raise HTTPException(status_code=401, detail="用户不存在或已停用")
     return user
+
+
+def get_optional_user(
+    creds: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer_scheme)],
+    db: Annotated[Session, Depends(get_db)],
+) -> User | None:
+    """公开接口里区分"有没有登录"：令牌缺失或失效一律按匿名处理，不抛错。"""
+    if creds is None:
+        return None
+    try:
+        payload = jwt.decode(creds.credentials, settings.jwt_secret, algorithms=[settings.jwt_algorithm])
+    except jwt.PyJWTError:
+        return None
+    user = db.get(User, int(payload["sub"]))
+    return user if user and user.is_active else None
+
+
+# 学生账号的用户名固定为 8 位学号（如 20280101）；负责人账号仍可用任意用户名
+STUDENT_ID_RE = re.compile(r"\d{8}")
+
+
+def ensure_student_id(username: str) -> str:
+    value = (username or "").strip()
+    if not STUDENT_ID_RE.fullmatch(value):
+        raise HTTPException(status_code=400, detail="学号应为 8 位数字，如 20280101")
+    return value
 
 
 def require_permission(permission: str):

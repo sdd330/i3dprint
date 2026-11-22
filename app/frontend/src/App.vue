@@ -45,7 +45,7 @@ async function changePassword() {
             <small>TEAM 6940 · 校园 3D 打印自助平台</small>
           </span>
         </div>
-        <nav class="nav">
+        <nav v-if="auth.isLoggedIn" class="nav">
           <router-link to="/">首页</router-link>
           <router-link to="/orders">我的订单</router-link>
           <router-link to="/create">创建需求</router-link>
@@ -67,9 +67,8 @@ async function changePassword() {
             {{ auth.isRoot ? '超级管理员' : auth.isAdmin ? '负责人' : auth.user.grade }}
           </el-tag>
           <el-button link @click="pwdVisible = true">修改密码</el-button>
-          <el-button link type="danger" @click="auth.logout(); $router.push('/')">退出</el-button>
+          <el-button link type="danger" @click="auth.logout(); $router.push('/login')">退出</el-button>
         </div>
-        <router-link v-else to="/login"><el-button type="primary" size="small">登录</el-button></router-link>
       </div>
     </header>
     <!-- 队徽底纹：固定在左侧，低透明度（sign.jpg） -->
@@ -93,6 +92,6 @@ async function changePassword() {
         <el-button type="primary" :loading="pwdBusy" @click="changePassword">确认修改</el-button>
       </template>
     </el-dialog>
-    <QaPanel />
+    <QaPanel v-if="auth.isLoggedIn" />
   </div>
 </template>

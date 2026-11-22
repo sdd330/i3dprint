@@ -7,6 +7,7 @@ from .core.security import hash_password
 from .models import AppSetting, Campaign, ConfigTemplate, CostLedger, Model, ModelVersion, Order, PrintJob, QaKnowledge, Review, Role, User
 from .models.entities import now_iso
 from .models.permissions import DEFAULT_ROLES
+from .services.campaign_service import generate_access_password
 
 # 配置中心 · 默认活动模板（决策清单 §14：全局基线，新建活动复制为活动参数副本）
 DEFAULT_TEMPLATE_DATA = {
@@ -304,7 +305,7 @@ def seed(db: Session):
         campaign = Campaign(
             name="2026 秋季第 1 场 · 3D 打印体验活动",
             status="开放中",
-            password="E3DP-AUTUMN",
+            password=generate_access_password(),
             open_at="2026-08-28T09:00:00",
             close_at="2026-08-29T18:00:00",
             max_participants=20,

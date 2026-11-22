@@ -43,8 +43,15 @@ function openCreate() {
   createForm.role_id = stu?.id ?? roles.value[0]?.id ?? null
   createVisible.value = true
 }
+const STUDENT_ID = /^\d{8}$/
+function isStudentRole() {
+  return roles.value.find(r => r.id === createForm.role_id)?.code === 'student'
+}
 async function submitCreate() {
   if (!createForm.username.trim()) return ElMessage.warning('请填写学号 / 用户名')
+  if (isStudentRole() && !STUDENT_ID.test(createForm.username.trim())) {
+    return ElMessage.warning('学生账号须用 8 位学号，如 20280101')
+  }
   if ((createForm.password || '').length < 6) return ElMessage.warning('初始密码至少 6 位')
   creating.value = true
   try {
@@ -218,7 +225,11 @@ onMounted(load)
       <el-form label-position="top">
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px">
           <el-form-item label="学号 / 用户名">
-            <el-input v-model="createForm.username" placeholder="如 20261234" />
+            <el-input v-model="createForm.username"
+                      :placeholder="isStudentRole() ? '8 位学号，如 20280101' : '账号名'" />
+            <div class="muted" style="font-size: 12px; margin-top: 4px">
+              学生角色必须用 8 位学号；负责人角色可用任意账号名
+            </div>
           </el-form-item>
           <el-form-item label="姓名">
             <el-input v-model="createForm.name" placeholder="如 张同学" />

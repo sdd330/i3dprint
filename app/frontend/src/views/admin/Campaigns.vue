@@ -154,7 +154,7 @@ onMounted(load)
               <span>开放 {{ row.open_at || '—' }}</span>
               <span>收尾 {{ row.close_at || '—' }}</span>
               <span>人数上限 {{ row.max_participants }}</span>
-              <span>取件密码 <b class="mono">{{ row.password }}</b></span>
+              <span>活动口令 <b class="mono">{{ row.password }}</b></span>
             </div>
             <div class="muted" style="font-size: 12.5px; margin-top: 4px; display: flex; gap: 14px; flex-wrap: wrap">
               <span>需求 {{ row.orders_active }} 进行中 / {{ row.orders_total }} 总计</span>
@@ -204,8 +204,11 @@ onMounted(load)
           <el-form-item label="人数上限">
             <el-input-number v-model="createForm.max_participants" :min="1" :max="200" style="width: 100%" />
           </el-form-item>
-          <el-form-item label="取件密码（留空自动生成）">
-            <el-input v-model="createForm.password" placeholder="E3DP-AUTUMN" />
+          <el-form-item label="活动口令（留空自动生成）">
+            <el-input v-model="createForm.password" placeholder="留空则生成随机口令，如 K7MQ-XT9P" />
+            <div class="muted" style="font-size: 12px; margin-top: 4px">
+              学生登录与登记时必须填写此口令，请线下分发（不区分大小写，可省短横线）
+            </div>
           </el-form-item>
         </div>
         <el-form-item label="参数继承（§14 可选继承）">
@@ -245,8 +248,11 @@ onMounted(load)
           <el-form-item label="人数上限">
             <el-input-number v-model="editForm.max_participants" :min="1" :max="200" style="width: 100%" />
           </el-form-item>
-          <el-form-item label="取件密码">
+          <el-form-item label="活动口令">
             <el-input v-model="editForm.password" />
+            <div class="muted" style="font-size: 12px; margin-top: 4px">
+              改动后新口令立即生效；已登录的学生不受影响，直到会话过期
+            </div>
           </el-form-item>
         </div>
         <div class="muted" style="font-size: 12px">

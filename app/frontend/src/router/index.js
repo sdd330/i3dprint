@@ -2,7 +2,8 @@ import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '@/stores'
 
 const routes = [
-  { path: '/', component: () => import('@/views/Home.vue'), meta: { public: true } },
+  // 登录先行：除 /login 外所有页面都要求已登录（守卫见下方 beforeEach）
+  { path: '/', component: () => import('@/views/Home.vue') },
   { path: '/login', component: () => import('@/views/Login.vue'), meta: { public: true } },
   { path: '/orders', component: () => import('@/views/OrderList.vue') },
   { path: '/orders/:id', component: () => import('@/views/OrderDetail.vue') },
@@ -13,7 +14,7 @@ const routes = [
   // eslint-disable-next-line
   // { path: '/create/:id/params', component: () => import('@/views/ParamsConfig.vue') },
   { path: '/ai', component: () => import('@/views/AiModeling.vue') },
-  { path: '/manual', component: () => import('@/views/Manual.vue'), meta: { public: true } },
+  { path: '/manual', component: () => import('@/views/Manual.vue') },
   // 负责人端
   { path: '/admin', component: () => import('@/views/admin/AdminHome.vue'), meta: { admin: true } },
   { path: '/admin/manifest', component: () => import('@/views/admin/PrintManifest.vue'), meta: { admin: true } },

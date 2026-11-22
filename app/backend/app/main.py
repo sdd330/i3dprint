@@ -49,6 +49,10 @@ async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
     with SessionLocal() as db:
         seed(db)
+        from .services.campaign_service import rotate_weak_access_passwords
+        for camp in rotate_weak_access_passwords(db):
+            log.warning("活动「%s」还在用历史默认口令，已换成随机口令——"
+                        "新口令请到「活动管理」查看，并按线下方式重新告知学生", camp.name)
         try:
             from .core.security import verify_password
             from .models import User

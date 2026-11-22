@@ -56,10 +56,6 @@ onMounted(async () => {
             <span class="tag" :class="campCls">{{ campLabel }}</span>
             <span class="tag tag-ink" style="margin-left: 8px">单场 ≤ {{ campaign?.max_participants }} 人</span>
           </div>
-          <div style="text-align: right; font-family: var(--mono); font-size: 12px" class="muted">
-            <div>活动密码（取件用）</div>
-            <div style="font-size: 18px; font-weight: 700; color: var(--accent)">{{ campaign?.password }}</div>
-          </div>
         </div>
         <p style="color: var(--ink-soft); margin: 10px 0 0">{{ compliance?.statement }}</p>
 
