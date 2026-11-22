@@ -1,0 +1,224 @@
+{
+  "activity": {
+    "max_participants": 20,
+    "appeal_limit_per_campaign": 10,
+    "appeal_limit_per_model": 3,
+    "notice": "本场为 3D 打印体验活动"
+  },
+  "fee": {
+    "materials": [
+      {
+        "id": "pla-b",
+        "name": "PLA-Basic",
+        "price_per_g": 0.1,
+        "coeff": 1,
+        "density": 1.24,
+        "colors": [
+          {
+            "name": "白",
+            "hex": "#F5F5F0"
+          }
+        ]
+      },
+      {
+        "id": "pla-l",
+        "name": "PLA-Light",
+        "density": 1,
+        "colors": [
+          {
+            "name": "白",
+            "hex": "#F5F5F0"
+          }
+        ]
+      }
+    ],
+    "filament_change_fee": 1.5,
+    "maintenance": {
+      "base": 0.6,
+      "per_gram": 0.004
+    },
+    "reprint_rate": {
+      "PARAMETER": 1,
+      "MACHINE": 0.5,
+      "MODEL": 0,
+      "MACHINE_LIMIT": 0,
+      "OTHER": 1
+    },
+    "api": {
+      "tripo_per_point": 0.1,
+      "llm_input_per_mtok": 2,
+      "llm_output_per_mtok": 8
+    }
+  },
+  "val1": {
+    "build_volume": {
+      "x": 256,
+      "y": 256,
+      "z": 256
+    },
+    "wall_min_hard": 0.8,
+    "wall_min_soft": 1.2,
+    "overhang_warn": 30,
+    "overhang_hard": 55,
+    "checks": [
+      "integrity",
+      "closed",
+      "manifold",
+      "self_intersect",
+      "size",
+      "wall",
+      "overhang",
+      "material",
+      "params",
+      "sliceable"
+    ]
+  },
+  "presets": [
+    {
+      "id": "fast",
+      "name": "快速档",
+      "layer_height": 0.28,
+      "infill": 15,
+      "speed": 120,
+      "supports": "auto",
+      "note": "速度快，细节一般，适合结构简单的模型"
+    },
+    {
+      "id": "standard",
+      "name": "标准档",
+      "layer_height": 0.2,
+      "infill": 20,
+      "speed": 100,
+      "supports": "auto",
+      "note": "速度与质量均衡，日常推荐"
+    },
+    {
+      "id": "fine",
+      "name": "精细档",
+      "layer_height": 0.12,
+      "infill": 25,
+      "speed": 80,
+      "supports": "auto",
+      "note": "细节好，耗时较长，适合小尺寸模型"
+    }
+  ],
+  "print": {
+    "reprint_rate_machine": 0.5,
+    "queue_strategy": "fifo",
+    "anomaly_requeue": true,
+    "printers": [
+      {
+        "id": "x1c-01",
+        "name": "VEX教室一号机",
+        "model": "Bambu Lab X1-Carbon",
+        "enabled": true
+      },
+      {
+        "id": "x1c-02",
+        "name": "VEX教室二号机",
+        "model": "Bambu Lab X1-Carbon",
+        "enabled": true
+      },
+      {
+        "id": "x1c-03",
+        "name": "VEX教室三号机",
+        "model": "Bambu Lab X1-Carbon",
+        "enabled": true
+      },
+      {
+        "id": "x1c-04",
+        "name": "VEX教室四号机",
+        "model": "Bambu Lab X1-Carbon",
+        "enabled": true
+      },
+      {
+        "id": "x1c-05",
+        "name": "VEX教室五号机",
+        "model": "Bambu Lab X1-Carbon",
+        "enabled": true
+      },
+      {
+        "id": "x1c-06",
+        "name": "VEX教室六号机",
+        "model": "Bambu Lab X1-Carbon",
+        "enabled": true
+      },
+      {
+        "id": "x1c-07",
+        "name": "VEX教室七号机",
+        "model": "Bambu Lab X1-Carbon",
+        "enabled": true
+      }
+    ]
+  },
+  "strength_tiers": [
+    {
+      "id": "light",
+      "name": "轻量",
+      "icon": "🍃",
+      "desc": "展示摆件、不承力：耗材省、速度快",
+      "layer_height": 0.24,
+      "wall_loops": 2,
+      "infill_density": 10,
+      "top_shell_layers": 3,
+      "bottom_shell_layers": 3,
+      "infill_pattern": "grid"
+    },
+    {
+      "id": "standard",
+      "name": "标准",
+      "icon": "⚖️",
+      "desc": "日常推荐：质量与强度均衡",
+      "layer_height": 0.2,
+      "wall_loops": 2,
+      "infill_density": 20,
+      "top_shell_layers": 4,
+      "bottom_shell_layers": 3,
+      "infill_pattern": "grid"
+    },
+    {
+      "id": "strong",
+      "name": "坚固",
+      "icon": "🏗️",
+      "desc": "功能件、受力件：更厚壁、更高填充",
+      "layer_height": 0.2,
+      "wall_loops": 3,
+      "infill_density": 40,
+      "top_shell_layers": 5,
+      "bottom_shell_layers": 4,
+      "infill_pattern": "gyroid"
+    },
+    {
+      "id": "ultra",
+      "name": "超坚固",
+      "icon": "🛡️",
+      "desc": "承力结构件：耗材与时间显著增加",
+      "layer_height": 0.16,
+      "wall_loops": 4,
+      "infill_density": 60,
+      "top_shell_layers": 6,
+      "bottom_shell_layers": 5,
+      "infill_pattern": "cubic"
+    }
+  ],
+  "compliance": {
+    "list": [
+      "管制刀具/武器类模型",
+      "危险品（易燃易爆等）",
+      "明显违规用途（作弊工具等）",
+      "其他平台规定禁止的内容"
+    ],
+    "statement": "最终解释权归 FRC Team 6940 所有，任何人不得用作商业用途。",
+    "pickup_location": "五楼FRC教室",
+    "pickup_window": "11月27日放学后",
+    "contacts": []
+  },
+  "qa": {
+    "system_prompt": "你是校园3D打印活动平台「Violet Print」的站娘薇尔莉特(英文名Violet)，风格亲切俏皮。你只回答与本平台（3D打印、模型、Val1/Val2/Val3审核、切片、费用、取件）相关的问题；当前用户处于步骤：{step}。若用户询问无关内容，主动引导回打印主题。平台合规声明：{statement}",
+    "filter_words": [
+      "代打印外单",
+      "商业接单",
+      "违禁品代购"
+    ]
+  }
+}
