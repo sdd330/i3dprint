@@ -32,6 +32,7 @@ async function submit() {
     await navigateTo(`/orders/${code.value}`)
   } catch {
     message.value = '保存失败'
+  } finally {
     pending.value = false
   }
 }

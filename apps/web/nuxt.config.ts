@@ -36,6 +36,10 @@ export default defineNuxtConfig({
       meta: [
         { name: 'theme-color', content: '#07060a' },
         { name: 'description', content: 'Violet Z 三维打印' },
+        { name: 'mobile-web-app-capable', content: 'yes' },
+        { name: 'apple-mobile-web-app-capable', content: 'yes' },
+        { name: 'apple-mobile-web-app-status-bar-style', content: 'black-translucent' },
+        { name: 'apple-mobile-web-app-title', content: 'Violet Z' },
       ],
       link: [
         { rel: 'icon', href: '/logo.jpg', type: 'image/jpeg' },
@@ -56,7 +60,7 @@ export default defineNuxtConfig({
   nitro: {
     prerender: {
       crawlLinks: false,
-      routes: ['/offline'],
+      routes: ['/offline', '/manual'],
     },
   },
   pwa: {
@@ -69,22 +73,53 @@ export default defineNuxtConfig({
       theme_color: '#07060a',
       background_color: '#07060a',
       display: 'standalone',
+      orientation: 'any',
       start_url: '/',
+      scope: '/',
+      id: '/',
+      categories: ['productivity', 'utilities'],
       icons: [
-        { src: 'pwa-192.png', sizes: '192x192', type: 'image/png' },
-        { src: 'pwa-512.png', sizes: '512x512', type: 'image/png' },
-        { src: 'pwa-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+        { src: 'pwa-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+        { src: 'pwa-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+        { src: 'pwa-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
       ],
     },
     generateSW: {
       globPatterns: ['**/*.{js,css,html,png,svg,jpg,ico,woff2}'],
       navigateFallback: '/offline',
+      navigateFallbackDenylist: [/^\/api\//, /^\/oauth\//],
+      runtimeCaching: [
+        {
+          urlPattern: ({ request }) => request.destination === 'image',
+          handler: 'CacheFirst',
+          options: {
+            cacheName: 'vz-images',
+            expiration: { maxEntries: 64, maxAgeSeconds: 60 * 60 * 24 * 30 },
+          },
+        },
+        {
+          urlPattern: ({ request }) => request.destination === 'font',
+          handler: 'CacheFirst',
+          options: {
+            cacheName: 'vz-fonts',
+            expiration: { maxEntries: 16, maxAgeSeconds: 60 * 60 * 24 * 365 },
+          },
+        },
+        {
+          urlPattern: ({ url }) => url.pathname.startsWith('/api/'),
+          handler: 'NetworkOnly',
+        },
+      ],
     },
     client: {
-      installPrompt: true,
+      installPrompt: 'vz-hide-install',
+      periodicSyncForUpdates: 3600,
     },
     devOptions: {
-      enabled: false,
+      enabled: true,
+      suppressWarnings: true,
+      navigateFallback: '/offline',
+      type: 'module',
     },
   },
 })
